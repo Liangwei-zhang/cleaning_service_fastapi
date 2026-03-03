@@ -1520,7 +1520,7 @@
                         </div>
                     `
                             : `
-                        <button class="btn-accept" onclick="acceptCompletion(${orderId})" style="width:100%;padding:14px;margin-top:8px;border-radius:14px;border:none;background:var(--primary);color:white;font-weight:700;font-size:15px;cursor:pointer;">
+                        <button class="btn-accept"  style="width:100%;padding:14px;margin-top:8px;border-radius:14px;border:none;background:var(--primary);color:white;font-weight:700;font-size:15px;cursor:pointer;">
                             ✅ 驗收完成
                         </button>
                     `
@@ -1602,7 +1602,7 @@
                 if (acceptedByHost === 1) {
                     actions.innerHTML = `<div style="padding:16px;background:#E8F5E9;border-radius:16px;text-align:center;color:#2E7D32;font-weight:700;font-size:16px;">✅ 已驗收</div>`;
                 } else {
-                    actions.innerHTML = `<button onclick="acceptCompletion(${orderId});closePhotoGallery();" style="width:100%;padding:18px;border-radius:16px;border:none;background:var(--primary);color:white;font-weight:700;font-size:16px;cursor:pointer;">✅ 驗收完成</button>`;
+                    actions.innerHTML = `<button  style="width:100%;padding:18px;border-radius:16px;border:none;background:var(--primary);color:white;font-weight:700;font-size:16px;cursor:pointer;">✅ 驗收完成</button>`;
                 }
 
                 document
