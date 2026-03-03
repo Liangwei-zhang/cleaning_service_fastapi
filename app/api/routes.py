@@ -334,6 +334,10 @@ def get_orders(
             if prop:
                 order_dict["property_name"] = prop.name
                 order_dict["property_address"] = prop.address
+                order_dict["property_street"] = prop.street
+                order_dict["property_city"] = prop.city
+                order_dict["property_province"] = prop.province
+                order_dict["property_house_number"] = prop.house_number
         data.append(order_dict)
     
     return {
