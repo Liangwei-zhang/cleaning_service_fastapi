@@ -1225,6 +1225,7 @@
                         <div class="price">$${o.price}</div>
                     </div>
                     <div class="info-row">📍 ${shortAddr(o)}</div>
+                    ${o.distance !== undefined ? `<div class="info-row">📏 距離: ${o.distance.toFixed(1)} km</div>` : ''}
                     <div class="info-row">🕐 退房時間: ${formatTime(o.checkout_time)}</div>
                     ${
                         o.text_notes
