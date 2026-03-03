@@ -11,6 +11,7 @@ import logging
 from app.core.database import init_db, engine
 from app.core.logging import logger
 from app.api.routes import router
+from app.api.websocket import websocket_endpoint
 
 
 @asynccontextmanager
@@ -111,6 +112,10 @@ async def health_check():
 
 # Include routers
 app.include_router(router)
+
+# WebSocket endpoint
+from fastapi import WebSocket
+app.add_api_websocket_route("/ws", websocket_endpoint)
 
 # Static files
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
