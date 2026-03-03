@@ -45,7 +45,9 @@
                 animation: spin 1s linear infinite;
             }
             @keyframes spin {
-                to { transform: rotate(360deg); }
+                to {
+                    transform: rotate(360deg);
+                }
             }
             .loading-text {
                 color: #fff;
@@ -462,7 +464,7 @@
                 cursor: pointer;
                 transition: all 0.2s;
                 line-height: 1.3;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             }
             .tab-btn.active {
                 background: var(--primary);
@@ -650,11 +652,41 @@
             <main id="pageOrders" class="page">
                 <h2 class="page-title">當前訂單</h2>
                 <div class="sort-bar" id="orderFilterBar">
-                    <button class="tab-btn active" data-filter="all" onclick="setOrderFilter('all')">📋<br>全部</button>
-                    <button class="tab-btn" data-filter="open" onclick="setOrderFilter('open')">⏳<br>待接單</button>
-                    <button class="tab-btn" data-filter="accepted" onclick="setOrderFilter('accepted')">🔄<br>進行中</button>
-                    <button class="tab-btn" data-filter="completed" onclick="setOrderFilter('completed')">⏰<br>待驗收</button>
-                    <button class="tab-btn" data-filter="accepted_by_host" onclick="setOrderFilter('accepted_by_host')">✅<br>已驗收</button>
+                    <button
+                        class="tab-btn active"
+                        data-filter="all"
+                        onclick="setOrderFilter('all')"
+                    >
+                        📋<br />全部
+                    </button>
+                    <button
+                        class="tab-btn"
+                        data-filter="open"
+                        onclick="setOrderFilter('open')"
+                    >
+                        ⏳<br />待接單
+                    </button>
+                    <button
+                        class="tab-btn"
+                        data-filter="accepted"
+                        onclick="setOrderFilter('accepted')"
+                    >
+                        🔄<br />進行中
+                    </button>
+                    <button
+                        class="tab-btn"
+                        data-filter="completed"
+                        onclick="setOrderFilter('completed')"
+                    >
+                        ⏰<br />待驗收
+                    </button>
+                    <button
+                        class="tab-btn"
+                        data-filter="accepted_by_host"
+                        onclick="setOrderFilter('accepted_by_host')"
+                    >
+                        ✅<br />已驗收
+                    </button>
                 </div>
                 <div id="hostOrdersList"></div>
             </main>
@@ -772,26 +804,31 @@
         <script>
             // XSS 防護函數 - 全局作用域
             function escapeHtml(str) {
-                if (!str) return '';
+                if (!str) return "";
                 return String(str)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#039;');
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
             }
             const e = escapeHtml; // 簡化
-            
+
             const API = "/api";
             const hostPhone = localStorage.getItem("host_phone");
             let currentPage = "orders";
-            let currentOrderFilter = 'all';
+            let currentOrderFilter = "all";
 
             function setOrderFilter(filter) {
                 currentOrderFilter = filter;
-                document.querySelectorAll('#orderFilterBar .tab-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.filter === filter);
-                });
+                document
+                    .querySelectorAll("#orderFilterBar .tab-btn")
+                    .forEach((btn) => {
+                        btn.classList.toggle(
+                            "active",
+                            btn.dataset.filter === filter,
+                        );
+                    });
                 loadOrders();
             }
 
@@ -835,12 +872,14 @@
                 try {
                     const d = new Date(isoString);
                     const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    const h = String(d.getHours()).padStart(2, '0');
-                    const min = String(d.getMinutes()).padStart(2, '0');
+                    const m = String(d.getMonth() + 1).padStart(2, "0");
+                    const day = String(d.getDate()).padStart(2, "0");
+                    const h = String(d.getHours()).padStart(2, "0");
+                    const min = String(d.getMinutes()).padStart(2, "0");
                     return `${y}-${m}-${day} ${h}:${min}`;
-                } catch(e) { return isoString; }
+                } catch (e) {
+                    return isoString;
+                }
             }
 
             async function loadOrders() {
@@ -855,12 +894,22 @@
                     if (currentOrderFilter !== "all") {
                         if (currentOrderFilter === "accepted_by_host") {
                             // 已驗收：status=completed 且 accepted_by_host=1
-                            orders = orders.filter(o => o.status === 'completed' && o.accepted_by_host === 1);
+                            orders = orders.filter(
+                                (o) =>
+                                    o.status === "completed" &&
+                                    o.accepted_by_host === 1,
+                            );
                         } else if (currentOrderFilter === "completed") {
                             // 待驗收：status=completed 且 accepted_by_host≠1
-                            orders = orders.filter(o => o.status === 'completed' && o.accepted_by_host !== 1);
+                            orders = orders.filter(
+                                (o) =>
+                                    o.status === "completed" &&
+                                    o.accepted_by_host !== 1,
+                            );
                         } else {
-                            orders = orders.filter(o => o.status === currentOrderFilter);
+                            orders = orders.filter(
+                                (o) => o.status === currentOrderFilter,
+                            );
                         }
                     }
 
@@ -870,7 +919,7 @@
                                 (o) => `
                     <div class="card" onclick="${o.status === "completed" ? `viewOrderPhotos(${o.id}, '${encodeURIComponent(JSON.stringify(o.completion_photos ? JSON.parse(o.completion_photos) : []))}', ${o.accepted_by_host || 0})` : ""}" style="${o.status === "completed" ? "cursor:pointer" : ""}">
                         <div class="card-header">
-                            <span class="badge ${o.status === 'completed' && o.accepted_by_host ? 'status-completed-accepted' : 'status-' + o.status}">${translateStatus(o.status, o.accepted_by_host)}</span>
+                            <span class="badge ${o.status === "completed" && o.accepted_by_host ? "status-completed-accepted" : "status-" + o.status}">${translateStatus(o.status, o.accepted_by_host)}</span>
                             <div class="price-display">${o.price}</div>
                         </div>
                         <div class="card-title">${e(o.property_name) || "未命名房源"}</div>
@@ -890,18 +939,19 @@
                         <div style="background:#E3F2FD;padding:12px;border-radius:10px;margin-top:10px;border-left:3px solid #2196F3;">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <div style="font-size:12px;color:#1565C0;font-weight:600;">📝 文字備註：</div>
-                                ${o.status === "open" ? `<button onclick="editTextNote(${o.id}, '${encodeURIComponent(o.text_notes)}')" style="font-size:11px;padding:4px 8px;border-radius:4px;border:1px solid #2196F3;background:white;color:#2196F3;cursor:pointer;">✏️ 編輯</button>` : ''}
+                                ${o.status === "open" ? `<button onclick="editTextNote(${o.id}, '${encodeURIComponent(o.text_notes)}')" style="font-size:11px;padding:4px 8px;border-radius:4px;border:1px solid #2196F3;background:white;color:#2196F3;cursor:pointer;">✏️ 編輯</button>` : ""}
                             </div>
                             <div id="note-display-${o.id}" style="font-weight:600;margin-top:6px;color:#333;">${e(o.text_notes)}</div>
                         </div>
                         `
-                                : o.status === "open" ? `
+                                : o.status === "open"
+                                  ? `
                         <div style="background:#f5f5f5;padding:12px;border-radius:10px;margin-top:10px;border-left:3px solid #999;">
                             <div style="font-size:12px;color:#666;font-weight:600;">📝 文字備註：</div>
                             <button onclick="addTextNote(${o.id})" style="margin-top:6px;font-size:12px;padding:6px 12px;border-radius:6px;border:1px dashed #999;background:white;color:#666;cursor:pointer;">+ 添加文字備註</button>
                         </div>
                         `
-                                : ""
+                                  : ""
                         }
 
                         ${
@@ -1175,7 +1225,9 @@
                 fetch(API + "/properties")
                     .then((r) => r.json())
                     .then((d) => {
-                        const props = (d.data || []).filter(p => p.host_phone === hostPhone);
+                        const props = (d.data || []).filter(
+                            (p) => p.host_phone === hostPhone,
+                        );
                         document.getElementById("orderPropId").innerHTML = props
                             .map(
                                 (p) =>
@@ -1199,7 +1251,8 @@
                         status: "open",
                         voice_url: null,
                         text_notes:
-                            document.getElementById("orderTextNote")?.value || null,
+                            document.getElementById("orderTextNote")?.value ||
+                            null,
                     };
                     const res = await fetch(`${API}/orders`, {
                         method: "POST",
@@ -1418,7 +1471,9 @@
                     // 獲取房源列表（只顯示當前用戶的房源）
                     const propsRes = await fetch(API + "/properties");
                     const propsData = await propsRes.json();
-                    const properties = (propsData.data || []).filter(p => p.host_phone === hostPhone);
+                    const properties = (propsData.data || []).filter(
+                        (p) => p.host_phone === hostPhone,
+                    );
 
                     document.getElementById("modalTitle").textContent =
                         "修改訂單";
@@ -1482,7 +1537,7 @@
             }
 
             function translateStatus(s, acceptedByHost) {
-                if (s === 'completed' && acceptedByHost) return "已驗收";
+                if (s === "completed" && acceptedByHost) return "已驗收";
                 return (
                     {
                         open: "待接單",
@@ -1510,7 +1565,7 @@
                     const accepted = acceptedByHost === 1;
                     return `
                     <div style="display:flex;gap:6px;overflow-x:auto;padding:8px 0;">
-                        ${photos.map((p) => `<img loading="lazy" src="${p}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;flex-shrink:0;" onclick="viewPhoto('${p}')">`).join("")}
+                        ${photos.map((p) => `<img loading="lazy" src="${p}" style="width:60px;height:60px;border-radius:8px;object-fit:cover;flex-shrink:0;">`).join("")}
                     </div>
                     ${
                         accepted
@@ -1537,7 +1592,10 @@
                     const res = await fetch(`${API}/orders/${orderId}`, {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ status: "completed", accepted_by_host: 1 }),
+                        body: JSON.stringify({
+                            status: "completed",
+                            accepted_by_host: 1,
+                        }),
                     });
                     if (res.ok) {
                         showToast("✅ 驗收成功！");
@@ -1577,10 +1635,9 @@
                         photos = Object.values(photosJson);
                     }
                 } catch (e) {
-// console.error("Parse photos error:", e);
+                    // console.error("Parse photos error:", e);
                     photos = [];
                 }
-
 
                 // Filter empty
                 if (photos && Array.isArray(photos)) {
@@ -1643,50 +1700,53 @@
 
             // 編輯文字備註
             function editTextNote(orderId, currentNote) {
-                const newNote = prompt('編輯文字備註：', decodeURIComponent(currentNote));
+                const newNote = prompt(
+                    "編輯文字備註：",
+                    decodeURIComponent(currentNote),
+                );
                 if (newNote === null) return;
-                
-                fetch(API + '/orders/' + orderId, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text_notes: newNote })
+
+                fetch(API + "/orders/" + orderId, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text_notes: newNote }),
                 })
-                .then(r => r.json())
-                .then(d => {
-                    if (d.data || d.id || d.message) {
-                        showToast('✅ 備註已更新');
-                        loadOrders();
-                    } else {
-                        showToast('❌ 更新失敗');
-                    }
-                })
-                .catch(e => {
-                    showToast('❌ 請求失敗');
-                });
+                    .then((r) => r.json())
+                    .then((d) => {
+                        if (d.data || d.id || d.message) {
+                            showToast("✅ 備註已更新");
+                            loadOrders();
+                        } else {
+                            showToast("❌ 更新失敗");
+                        }
+                    })
+                    .catch((e) => {
+                        showToast("❌ 請求失敗");
+                    });
             }
 
             // 添加文字備註
             function addTextNote(orderId) {
-                const newNote = prompt('添加文字備註：', '');
-                if (newNote === null || newNote.trim() === '') return;
-                
-                fetch(API + '/orders/' + orderId, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text_notes: newNote })
+                const newNote = prompt("添加文字備註：", "");
+                if (newNote === null || newNote.trim() === "") return;
+
+                fetch(API + "/orders/" + orderId, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text_notes: newNote }),
                 })
-                .then(r => r.json())
-                .then(d => {
-                    if (d.data || d.id || d.message) {
-                        showToast('✅ 備註已添加');
-                        loadOrders();
-                    } else {
-                        showToast('❌ 添加失敗');
-                    }
-                })
-                .catch(e => {
-                    showToast('❌ 請求失敗');
-                });
+                    .then((r) => r.json())
+                    .then((d) => {
+                        if (d.data || d.id || d.message) {
+                            showToast("✅ 備註已添加");
+                            loadOrders();
+                        } else {
+                            showToast("❌ 添加失敗");
+                        }
+                    })
+                    .catch((e) => {
+                        showToast("❌ 請求失敗");
+                    });
             }
 
             function showToast(msg) {
@@ -1758,29 +1818,29 @@
 
             // 切換備註模式（語音/文字）
             function setNoteMode(mode) {
-                const voiceBtn = document.getElementById('btnVoiceMode');
-                const textBtn = document.getElementById('btnTextMode');
-                const voiceArea = document.getElementById('voiceInputArea');
-                const textArea = document.getElementById('textInputArea');
-                
-                if (mode === 'voice') {
-                    voiceBtn.style.background = 'var(--primary)';
-                    voiceBtn.style.color = 'white';
-                    voiceBtn.style.borderColor = 'var(--primary)';
-                    textBtn.style.background = 'white';
-                    textBtn.style.color = '#666';
-                    textBtn.style.borderColor = '#ddd';
-                    voiceArea.style.display = 'block';
-                    textArea.style.display = 'none';
+                const voiceBtn = document.getElementById("btnVoiceMode");
+                const textBtn = document.getElementById("btnTextMode");
+                const voiceArea = document.getElementById("voiceInputArea");
+                const textArea = document.getElementById("textInputArea");
+
+                if (mode === "voice") {
+                    voiceBtn.style.background = "var(--primary)";
+                    voiceBtn.style.color = "white";
+                    voiceBtn.style.borderColor = "var(--primary)";
+                    textBtn.style.background = "white";
+                    textBtn.style.color = "#666";
+                    textBtn.style.borderColor = "#ddd";
+                    voiceArea.style.display = "block";
+                    textArea.style.display = "none";
                 } else {
-                    textBtn.style.background = 'var(--primary)';
-                    textBtn.style.color = 'white';
-                    textBtn.style.borderColor = 'var(--primary)';
-                    voiceBtn.style.background = 'white';
-                    voiceBtn.style.color = '#666';
-                    voiceBtn.style.borderColor = '#ddd';
-                    voiceArea.style.display = 'none';
-                    textArea.style.display = 'block';
+                    textBtn.style.background = "var(--primary)";
+                    textBtn.style.color = "white";
+                    textBtn.style.borderColor = "var(--primary)";
+                    voiceBtn.style.background = "white";
+                    voiceBtn.style.color = "#666";
+                    voiceBtn.style.borderColor = "#ddd";
+                    voiceArea.style.display = "none";
+                    textArea.style.display = "block";
                 }
             }
 
@@ -1807,7 +1867,10 @@
                         currentRecordOrderId = null;
 
                         if (audioChunks.length === 0) {
-                            const btnId = targetOrderId === 'new' ? 'recordBtn' : `recordBtn-${targetOrderId}`;
+                            const btnId =
+                                targetOrderId === "new"
+                                    ? "recordBtn"
+                                    : `recordBtn-${targetOrderId}`;
                             const btn = document.getElementById(btnId);
                             if (btn) {
                                 btn.textContent = "🎤 按住錄音（最長20秒）";
@@ -1831,9 +1894,8 @@
                         };
                         reader.readAsDataURL(audioBlob);
                     };
-
                 } catch (e) {
-// console.error("麥克風權限被拒絕", e);
+                    // console.error("麥克風權限被拒絕", e);
                     throw e;
                 }
             }
@@ -1848,13 +1910,14 @@
                     recordTimeout = null;
                 }
 
-                const btn = document.getElementById(orderId === 'new' ? 'recordBtn' : `recordBtn-${orderId}`);
+                const btn = document.getElementById(
+                    orderId === "new" ? "recordBtn" : `recordBtn-${orderId}`,
+                );
                 if (btn) {
                     btn.classList.remove("recording");
                     btn.textContent = "⏳ 處理中...";
                     btn.disabled = true;
                 }
-
 
                 // 保存orderId供onstop回調使用
                 const targetOrderId = currentRecordOrderId;
@@ -1865,7 +1928,7 @@
                         mediaRecorder.requestData();
                         mediaRecorder.stop();
                     } catch (e) {
-// console.error("停止錄音失敗:", e);
+                        // console.error("停止錄音失敗:", e);
                         // 如果停止失敗，手動處理
                         if (btn) {
                             btn.textContent = "🎤 按住錄音（最長20秒）";
@@ -1898,19 +1961,21 @@
                         loadOrders();
                     } else {
                         const err = await res.json();
-// console.error("保存失敗:", err);
+                        // console.error("保存失敗:", err);
                         showToast("保存失敗: " + (err.error || ""));
                         resetButton(orderId);
                     }
                 } catch (e) {
-// console.error("保存失敗:", e);
+                    // console.error("保存失敗:", e);
                     showToast("保存失敗");
                     resetButton(orderId);
                 }
             }
 
             function resetButton(orderId) {
-                const btn = document.getElementById(orderId === 'new' ? 'recordBtn' : `recordBtn-${orderId}`);
+                const btn = document.getElementById(
+                    orderId === "new" ? "recordBtn" : `recordBtn-${orderId}`,
+                );
                 if (btn) {
                     btn.textContent = "🎤 按住錄音（最長20秒）";
                     btn.disabled = false;
@@ -1919,25 +1984,27 @@
 
             // 刪除新訂單的錄音
             function deleteAudio() {
-                const voiceInput = document.getElementById('orderVoice');
-                if (voiceInput) voiceInput.value = '';
-                const audioPreview = document.getElementById('audioPreview');
-                const preview = document.getElementById('preview-new');
-                const btn = document.getElementById('recordBtn');
-                if (audioPreview) audioPreview.style.display = 'none';
-                if (preview) preview.style.display = 'none';
+                const voiceInput = document.getElementById("orderVoice");
+                if (voiceInput) voiceInput.value = "";
+                const audioPreview = document.getElementById("audioPreview");
+                const preview = document.getElementById("preview-new");
+                const btn = document.getElementById("recordBtn");
+                if (audioPreview) audioPreview.style.display = "none";
+                if (preview) preview.style.display = "none";
                 if (btn) {
-                    btn.style.display = 'block';
-                    btn.textContent = '🎤 按住說話';
+                    btn.style.display = "block";
+                    btn.textContent = "🎤 按住說話";
                 }
-                delete pendingVoiceData['new'];
+                delete pendingVoiceData["new"];
             }
 
             // 顯示錄音預覽
             let pendingVoiceData = {};
 
             function showVoicePreview(orderId, base64) {
-                const btn = document.getElementById(orderId === 'new' ? 'recordBtn' : `recordBtn-${orderId}`);
+                const btn = document.getElementById(
+                    orderId === "new" ? "recordBtn" : `recordBtn-${orderId}`,
+                );
                 const preview = document.getElementById(`preview-${orderId}`);
                 const previewAudio = document.getElementById(
                     `previewAudio-${orderId}`,
@@ -1961,23 +2028,24 @@
                     return;
                 }
 
-
                 // 新訂單：保存到表單輸入框
-                if (orderId === 'new') {
-                    const voiceInput = document.getElementById('orderVoice');
+                if (orderId === "new") {
+                    const voiceInput = document.getElementById("orderVoice");
                     if (voiceInput) voiceInput.value = base64;
-                    
+
                     // 顯示預覽
-                    const preview = document.getElementById('preview-new');
-                    const previewPlayer = document.getElementById('audioPreviewPlayer');
-                    if (preview) preview.style.display = 'none';
-                    const audioPreview = document.getElementById('audioPreview');
+                    const preview = document.getElementById("preview-new");
+                    const previewPlayer =
+                        document.getElementById("audioPreviewPlayer");
+                    if (preview) preview.style.display = "none";
+                    const audioPreview =
+                        document.getElementById("audioPreview");
                     if (audioPreview) {
-                        audioPreview.style.display = 'flex';
+                        audioPreview.style.display = "flex";
                         previewPlayer.src = base64;
                     }
-                    
-                    showToast('🎤 語音備註已保存');
+
+                    showToast("🎤 語音備註已保存");
                     delete pendingVoiceData[orderId];
                     return;
                 }
@@ -1999,7 +2067,7 @@
                         showToast("保存失敗: " + (result.error || ""));
                     }
                 } catch (e) {
-// console.error("保存失敗:", e);
+                    // console.error("保存失敗:", e);
                     showToast("保存失敗");
                 }
             }
@@ -2008,7 +2076,9 @@
             function cancelVoice(orderId) {
                 delete pendingVoiceData[orderId];
 
-                const btn = document.getElementById(orderId === 'new' ? 'recordBtn' : `recordBtn-${orderId}`);
+                const btn = document.getElementById(
+                    orderId === "new" ? "recordBtn" : `recordBtn-${orderId}`,
+                );
                 const preview = document.getElementById(`preview-${orderId}`);
 
                 if (preview) preview.style.display = "none";

@@ -328,7 +328,7 @@ def get_orders(
     # Enrich with property info
     data = []
     for r in results:
-        order_dict = r.dict()
+        order_dict = r.model_dump()
         if r.property_id:
             prop = session.get(Property, r.property_id)
             if prop:
