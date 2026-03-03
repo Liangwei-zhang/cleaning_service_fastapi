@@ -1,0 +1,397 @@
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
+from sqlmodel import select, func
+from typing import List, Optional
+import json
+import os
+import uuid
+from datetime import datetime
+
+from app.models.cleaning import Cleaner, Host, Property, Order
+from app.core.database import get_session
+from app.services.cache import cache, CacheKeys
+from sqlalchemy.orm import Session
+
+router = APIRouter(prefix="/api", tags=["api"])
+
+
+# ========== Cleaners ==========
+@router.get("/cleaners")
+def get_cleaners(session: Session = Depends(get_session)):
+    """Get all cleaners"""
+    # Try cache first
+    cached = cache.get(CacheKeys.CLEANERS)
+    if cached:
+        return {"data": cached}
+    
+    statement = select(Cleaner)
+    results = session.exec(statement).all()
+    data = [r.dict() for r in results]
+    
+    # Cache for 5 minutes
+    cache.set(CacheKeys.CLEANERS, data, ttl=300)
+    
+    return {"data": data}
+
+
+@router.post("/cleaners")
+def add_cleaner(data: dict, session: Session = Depends(get_session)):
+    """Add new cleaner"""
+    cleaner = Cleaner(
+        name=data.get("name", ""),
+        phone=data.get("phone", ""),
+        status=data.get("status", "active")
+    )
+    session.add(cleaner)
+    session.commit()
+    session.refresh(cleaner)
+    cache_clear("cleaners")
+    return {"data": {"id": cleaner.id}}
+
+
+@router.delete("/cleaners/{cleaner_id}")
+def delete_cleaner(cleaner_id: int, session: Session = Depends(get_session)):
+    """Delete cleaner"""
+    cleaner = session.get(Cleaner, cleaner_id)
+    if not cleaner:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+    session.delete(cleaner)
+    session.commit()
+    cache_clear("cleaners")
+    return {"message": "Deleted"}
+
+
+# ========== Hosts ==========
+@router.post("/hosts/login")
+def host_login(data: dict, session: Session = Depends(get_session)):
+    """Host login by phone"""
+    phone = data.get("phone", "")
+    code = data.get("code", "")
+    
+    statement = select(Host).where(Host.phone == phone)
+    host = session.exec(statement).first()
+    
+    if host:
+        return {"data": {"id": host.id, "name": host.name, "phone": host.phone}}
+    
+    # Create new host
+    new_host = Host(name=data.get("name", ""), phone=phone, code=code)
+    session.add(new_host)
+    session.commit()
+    session.refresh(new_host)
+    return {"data": {"id": new_host.id, "name": new_host.name, "phone": new_host.phone}}
+
+
+@router.post("/hosts/login-by-code")
+def host_login_by_code(data: dict, session: Session = Depends(get_session)):
+    """Host login by code"""
+    code = data.get("code", "")
+    statement = select(Host).where(Host.code == code)
+    host = session.exec(statement).first()
+    
+    if not host:
+        raise HTTPException(status_code=404, detail="Host not found")
+    return {"data": {"id": host.id, "name": host.name, "phone": host.phone}}
+
+
+@router.get("/hosts")
+def get_hosts(session: Session = Depends(get_session)):
+    """Get all hosts"""
+    statement = select(Host)
+    results = session.exec(statement).all()
+    return {"data": [r.dict() for r in results]}
+
+
+@router.post("/hosts")
+def add_host(data: dict, session: Session = Depends(get_session)):
+    """Add new host"""
+    host = Host(
+        name=data.get("name", ""),
+        phone=data.get("phone", ""),
+        code=data.get("code", "")
+    )
+    session.add(host)
+    session.commit()
+    session.refresh(host)
+    return {"data": {"id": host.id}}
+
+
+# ========== Properties ==========
+@router.get("/properties")
+def get_properties(
+    host_phone: Optional[str] = None,
+    session: Session = Depends(get_session)
+):
+    """Get properties"""
+    if host_phone:
+        statement = select(Property).where(Property.host_phone == host_phone)
+    else:
+        statement = select(Property)
+    results = session.exec(statement).all()
+    return {"data": [r.dict() for r in results]}
+
+
+@router.post("/properties")
+def add_property(data: dict, session: Session = Depends(get_session)):
+    """Add new property"""
+    property = Property(
+        name=data.get("name", ""),
+        address=data.get("address", ""),
+        host_phone=data.get("host_phone", ""),
+        province=data.get("province", ""),
+        city=data.get("city", ""),
+        street=data.get("street", ""),
+        house_number=data.get("house_number", ""),
+        postal_code=data.get("postal_code", ""),
+        floor=data.get("floor", 0),
+        area=data.get("area", 0.0)
+    )
+    session.add(property)
+    session.commit()
+    session.refresh(property)
+    cache_clear("properties")
+    return {"data": {"id": property.id}}
+
+
+@router.put("/properties/{property_id}")
+def update_property(property_id: int, data: dict, session: Session = Depends(get_session)):
+    """Update property"""
+    property = session.get(Property, property_id)
+    if not property:
+        raise HTTPException(status_code=404, detail="Property not found")
+    
+    for key, value in data.items():
+        if hasattr(property, key):
+            setattr(property, key, value)
+    
+    session.commit()
+    cache_clear("properties")
+    return {"data": property.dict()}
+
+
+@router.delete("/properties/{property_id}")
+def delete_property(property_id: int, session: Session = Depends(get_session)):
+    """Delete property"""
+    property = session.get(Property, property_id)
+    if not property:
+        raise HTTPException(status_code=404, detail="Property not found")
+    session.delete(property)
+    session.commit()
+    cache_clear("properties")
+    return {"message": "Deleted"}
+
+
+# ========== Orders ==========
+@router.get("/orders")
+def get_orders(
+    status: Optional[str] = None,
+    page: int = 1,
+    limit: int = 20,
+    session: Session = Depends(get_session)
+):
+    """Get orders with pagination"""
+    # Count total
+    count_stmt = select(func.count(Order.id))
+    if status:
+        count_stmt = count_stmt.where(Order.status == status)
+    total = session.exec(count_stmt).one()
+    
+    # Get data
+    offset = (page - 1) * limit
+    statement = select(Order).offset(offset).limit(limit)
+    if status:
+        statement = statement.where(Order.status == status)
+    results = session.exec(statement).all()
+    
+    return {
+        "data": [r.dict() for r in results],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit
+        }
+    }
+
+
+@router.post("/orders")
+def create_order(data: dict, session: Session = Depends(get_session)):
+    """Create new order"""
+    order = Order(
+        property_id=data.get("property_id"),
+        host_name=data.get("host_name", ""),
+        host_phone=data.get("host_phone", ""),
+        checkout_time=data.get("checkout_time"),
+        price=data.get("price", 100),
+        status="open",
+        voice_url=data.get("voice_url"),
+        text_notes=data.get("text_notes")
+    )
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    cache_clear("orders")
+    return {"data": {"id": order.id}}
+
+
+@router.get("/orders/{order_id}")
+def get_order(order_id: int, session: Session = Depends(get_session)):
+    """Get order by ID"""
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return {"data": order.dict()}
+
+
+@router.put("/orders/{order_id}")
+def update_order(order_id: int, data: dict, session: Session = Depends(get_session)):
+    """Update order"""
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    for key, value in data.items():
+        if hasattr(order, key):
+            setattr(order, key, value)
+    
+    session.commit()
+    cache_clear("orders")
+    return {"data": order.dict()}
+
+
+@router.post("/orders/{order_id}/accept")
+def accept_order(order_id: int, data: dict, session: Session = Depends(get_session)):
+    """Accept/order by cleaner"""
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    if order.status != "open":
+        raise HTTPException(status_code=400, detail="Order not available")
+    
+    cleaner_id = data.get("cleaner_id")
+    order.assigned_cleaner_id = cleaner_id
+    order.status = "accepted"
+    order.assigned_at = datetime.now().isoformat()
+    
+    session.commit()
+    cache_clear("orders")
+    return {"data": order.dict()}
+
+
+@router.post("/orders/{order_id}/arrived")
+def arrived_order(order_id: int, session: Session = Depends(get_session)):
+    """Mark cleaner arrived"""
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    order.arrived_at = datetime.now().isoformat()
+    session.commit()
+    return {"data": order.dict()}
+
+
+@router.post("/orders/{order_id}/complete")
+def complete_order(order_id: int, data: dict, session: Session = Depends(get_session)):
+    """Complete order"""
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    order.status = "completed"
+    order.completion_photos = json.dumps(data.get("photos", []))
+    
+    session.commit()
+    cache_clear("orders")
+    return {"data": order.dict()}
+
+
+@router.post("/orders/{order_id}/verify-accept")
+def verify_accept_order(order_id: int, session: Session = Depends(get_session)):
+    """Verify and accept by host"""
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    order.accepted_by_host = 1
+    session.commit()
+    return {"data": order.dict()}
+
+
+@router.delete("/orders/{order_id}")
+def delete_order(order_id: int, session: Session = Depends(get_session)):
+    """Delete order"""
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    session.delete(order)
+    session.commit()
+    cache_clear("orders")
+    return {"message": "Deleted"}
+
+
+# ========== Upload ==========
+@router.post("/upload/image")
+async def upload_image(file: UploadFile = File(...)):
+    """Upload image"""
+    import base64
+    contents = await file.read()
+    
+    # Save to file
+    filename = f"{uuid.uuid4()}.jpg"
+    filepath = f"uploads/images/{filename}"
+    
+    os.makedirs("uploads/images", exist_ok=True)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+    
+    return {"url": f"/uploads/images/{filename}"}
+
+
+@router.post("/upload/voice")
+async def upload_voice(file: UploadFile = File(...)):
+    """Upload voice"""
+    contents = await file.read()
+    
+    filename = f"{uuid.uuid4()}.webm"
+    filepath = f"uploads/voice/{filename}"
+    
+    os.makedirs("uploads/voice", exist_ok=True)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+    
+    return {"url": f"/uploads/voice/{filename}"}
+
+
+# ========== Stats ==========
+@router.get("/stats")
+def get_stats(session: Session = Depends(get_session)):
+    """Get statistics"""
+    # Try cache first
+    cached = cache.get(CacheKeys.STATS)
+    if cached:
+        return {"data": cached}
+    
+    total_orders = session.exec(select(func.count(Order.id))).one()
+    pending_orders = session.exec(select(func.count(Order.id)).where(Order.status == "open")).one()
+    completed_orders = session.exec(select(func.count(Order.id)).where(Order.status == "completed")).one()
+    total_cleaners = session.exec(select(func.count(Cleaner.id))).one()
+    total_hosts = session.exec(select(func.count(Host.id))).one()
+    
+    data = {
+        "total_orders": total_orders,
+        "pending_orders": pending_orders,
+        "completed_orders": completed_orders,
+        "total_cleaners": total_cleaners,
+        "total_hosts": total_hosts
+    }
+    
+    # Cache for 1 minute
+    cache.set(CacheKeys.STATS, data, ttl=60)
+    
+    return {"data": data}
+
+
+def cache_clear(pattern: str):
+    """Clear cache"""
+    cache.invalidate_pattern(f"*{pattern}*")
