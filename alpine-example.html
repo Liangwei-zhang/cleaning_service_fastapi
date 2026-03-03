@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartClean - 短租清潔調度系統</title>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/skeleton.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2E7D32">
+</head>
+<body x-data="app()">
+    <!-- Navigation -->
+    <nav class="nav-bar">
+        <a href="/" class="nav-item" :class="{active: currentPage === 'home'}">
+            <span class="nav-icon">🏠</span>
+            首頁
+        </a>
+        <a href="/orders.html" class="nav-item" :class="{active: currentPage === 'orders'}">
+            <span class="nav-icon">📋</span>
+            訂單
+        </a>
+        <a href="/profile.html" class="nav-item" :class="{active: currentPage === 'profile'}">
+            <span class="nav-icon">👤</span>
+            我的
+        </a>
+    </nav>
+
+    <!-- Page Content -->
+    <main class="main-content">
+        <!-- Login Form -->
+        <div x-show="currentPage === 'login'" x-cloak>
+            <h1>登錄</h1>
+            <form @submit.prevent="login()">
+                <div class="form-group">
+                    <label>電話</label>
+                    <input type="tel" x-model="loginForm.phone" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>密碼</label>
+                    <input type="password" x-model="loginForm.password" class="form-input" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%">登錄</button>
+            </form>
+        </div>
+
+        <!-- Orders List -->
+        <div x-show="currentPage === 'orders'" x-cloak>
+            <h1>訂單列表</h1>
+            
+            <!-- Loading State -->
+            <template x-if="loading">
+                <div id="orders-skeleton"></div>
+            </template>
+            
+            <!-- Orders -->
+            <template x-if="!loading">
+                <div class="orders-list">
+                    <template x-for="order in orders" :key="order.id">
+                        <div class="card">
+                            <h3 x-text="order.property_name"></h3>
+                            <p x-text="order.checkout_time"></p>
+                            <p x-text="'$' + order.price"></p>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container">
+            <template x-for="toast in toasts" :key="toast.id">
+                <div class="toast" :class="toast.type" x-text="toast.message"></div>
+            </template>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/websocket.js"></script>
+    <script>
+        function app() {
+            return {
+                // State
+                currentPage: 'login',
+                loading: false,
+                orders: [],
+                toasts: [],
+                loginForm: {
+                    phone: '',
+                    password: ''
+                },
+                user: null,
+
+                // Initialize
+                init() {
+                    // Check auth
+                    const token = localStorage.getItem('token');
+                    if (token) {
+                        this.currentPage = 'orders';
+                        this.loadOrders();
+                    }
+                },
+
+                // Actions
+                async login() {
+                    try {
+                        const result = await apiRequest('/auth/login', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                phone: this.loginForm.phone,
+                                password: this.loginForm.password
+                            })
+                        });
+                        
+                        localStorage.setItem('token', result.access_token);
+                        this.user = result.user;
+                        this.currentPage = 'orders';
+                        this.loadOrders();
+                        this.showToast('登錄成功', 'success');
+                    } catch (error) {
+                        this.showToast(error.message, 'error');
+                    }
+                },
+
+                async loadOrders() {
+                    this.loading = true;
+                    showSkeleton('orders-skeleton', 'list');
+                    
+                    try {
+                        const result = await apiRequest('/orders?limit=20');
+                        this.orders = result.data;
+                    } catch (error) {
+                        this.showToast('載入失敗', 'error');
+                    }
+                    
+                    this.loading = false;
+                },
+
+                // Toast notifications
+                showToast(message, type = 'info') {
+                    const id = Date.now();
+                    this.toasts.push({ id, message, type });
+                    setTimeout(() => {
+                        this.toasts = this.toasts.filter(t => t.id !== id);
+                    }, 3000);
+                },
+
+                logout() {
+                    localStorage.removeItem('token');
+                    this.user = null;
+                    this.currentPage = 'login';
+                }
+            };
+        }
+    </script>
+</body>
+</html>
