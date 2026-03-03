@@ -54,6 +54,7 @@
 - [ ] HTTPS/SSL 證書配置
 - [ ] 敏感信息脫敏 (手機號遮蔽)
 - [ ] HttpOnly Cookie for Refresh Token
+- [ ] XSS 防護 (innerHTML → textContent, 22處)
 
 ### 5.2 數據庫優化
 
