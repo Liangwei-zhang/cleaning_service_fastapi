@@ -1,6 +1,19 @@
 version: '3.8'
 
 services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: smartclean_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
@@ -14,6 +27,11 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=512MB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -29,31 +47,40 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # SmartClean API
+  # SmartClean API (4 workers)
   app:
     build: .
     container_name: smartclean_api
     restart: unless-stopped
-    ports:
-      - "80:80"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cleaning
       REDIS_ENABLED: "true"
       REDIS_URL: redis://redis:6379/0
       DEBUG: "false"
+      # S3 Configuration (optional)
+      S3_ENABLED: "false"
+      S3_ENDPOINT: "minio:9000"
+      S3_BUCKET: "smartclean"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./uploads:/app/uploads
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
 volumes:
   postgres_data:

@@ -6,8 +6,9 @@ from fastapi.exceptions import RequestValidationError
 import os
 from contextlib import asynccontextmanager
 import time
+import logging
 
-from app.core.database import init_db
+from app.core.database import init_db, engine
 from app.core.logging import logger
 from app.api.routes import router
 
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized!")
     yield
     logger.info("Shutting down...")
+    await engine.dispose()
 
 
 app = FastAPI(
@@ -41,13 +43,10 @@ app.add_middleware(
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
-    
-    # Log request
     logger.info(f"→ {request.method} {request.url.path}")
     
     response = await call_next(request)
     
-    # Log response
     process_time = time.time() - start_time
     logger.info(
         f"← {request.method} {request.url.path} "
@@ -62,19 +61,52 @@ async def log_requests(request: Request, call_next):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.warning(f"Validation error: {exc}")
-    return JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors()}
-    )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled error: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"}
-    )
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check for Docker/K8s"""
+    import redis
+    from sqlalchemy import text
+    
+    health = {
+        "status": "healthy",
+        "database": "unknown",
+        "cache": "unknown"
+    }
+    
+    # Check database
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        health["database"] = "healthy"
+    except Exception as e:
+        health["database"] = f"unhealthy: {str(e)}"
+        health["status"] = "degraded"
+    
+    # Check Redis
+    try:
+        import os
+        if os.getenv("REDIS_ENABLED", "false").lower() == "true":
+            r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+            r.ping()
+            health["cache"] = "healthy"
+        else:
+            health["cache"] = "disabled"
+    except Exception as e:
+        health["cache"] = f"unhealthy: {str(e)}"
+        health["status"] = "degraded"
+    
+    status_code = 200 if health["status"] == "healthy" else 503
+    return JSONResponse(content=health, status_code=status_code)
 
 
 # Include routers

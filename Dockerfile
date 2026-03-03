@@ -15,14 +15,17 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install Gunicorn with Uvicorn workers
+RUN pip install gunicorn
+
 # Copy application code
 COPY . .
 
 # Create logs directory
-RUN mkdir -p logs
+RUN mkdir -p logs uploads/images uploads/voice
 
 # Expose port
 EXPOSE 80
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
+# Run with Gunicorn (4 workers for better concurrency)
+CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "app.main:app", "--bind", "0.0.0.0:80"]
