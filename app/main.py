@@ -23,7 +23,8 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized!")
     yield
     logger.info("Shutting down...")
-    await engine.dispose()
+    if engine:
+        engine.dispose()
 
 
 app = FastAPI(
