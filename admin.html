@@ -433,7 +433,7 @@
             // 新增 - 自動生成驗證碼
             const result = await req(`/${type}`, 'POST', body);
             if (result.error) {
-                alert(result.error);
+                showToast(result.error);
             } else {
                 toggleModal('editModal', false);
             }

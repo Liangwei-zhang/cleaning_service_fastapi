@@ -310,7 +310,7 @@
                         localStorage.setItem('host_phone', data.data.phone);
                         window.location.href = 'host.html';
                     } else {
-                        alert('驗證碼錯誤');
+                        showToast('驗證碼錯誤');
                     }
                 } 
                 else if (currentMode === 'cleaner') {
@@ -324,7 +324,7 @@
                         localStorage.setItem('cleaner_name', cleaner.name);
                         window.location.href = 'cleaner.html';
                     } else {
-                        alert('驗證碼錯誤');
+                        showToast('驗證碼錯誤');
                     }
                 }
                 else if (currentMode === 'admin') {
@@ -334,7 +334,7 @@
                         localStorage.setItem('admin_user', u);
                         window.location.href = 'admin.html';
                     } else {
-                        alert('帳號密碼錯誤');
+                        showToast('帳號密碼錯誤');
                     }
                 }
             } catch (err) {

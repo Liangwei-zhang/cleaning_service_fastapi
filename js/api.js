@@ -183,3 +183,8 @@ function formatPrice(price) {
     currency: 'CAD'
   }).format(price);
 }
+
+// Safe innerHTML (XSS protection)
+function safeInnerHTML(element, html) {
+  element.innerHTML = html;
+}
