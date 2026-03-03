@@ -1309,7 +1309,7 @@
                         }</span></div>
                         ${o.status === "completed" ? renderCompletionPhotos(o.completion_photos) : ""}
                         <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddr(o))}" class="map-link" target="_blank">↗️ 查看地圖導航</a>
-                        ${o.status === "accepted" || o.status === "arrived" ? `<button class="btn-arrived" onclick="arrivedOrder(${o.id})">📍 我已到達</button>` : ""}
+                        ${o.status === "accepted" ? `<button class="btn-arrived" onclick="arrivedOrder(${o.id})">📍 我已到達</button>` : ""}
                         ${o.status === "arrived" ? `<button class="btn-done" onclick="completeOrder(${o.id})">✅ 清潔完成</button>` : ""}
                     </div>
                 `,
