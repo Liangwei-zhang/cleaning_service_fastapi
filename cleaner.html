@@ -1260,7 +1260,7 @@
             function setMyTaskFilter(filter) {
                 currentMyTaskFilter = filter;
                 document.querySelectorAll('#myTaskBar .tab-btn').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.filter === filter));
+                    btn.classList.toggle('active', btn.dataset.filter === filter);
                 });
                 loadMyOrders();
             }
