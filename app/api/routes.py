@@ -477,17 +477,27 @@ def delete_order(order_id: int, session: Session = Depends(get_session)):
 # ========== Upload ==========
 @router.post("/upload/image")
 async def upload_image(file: UploadFile = File(...)):
-    """Upload image"""
+    """Upload image with compression"""
     import base64
+    from PIL import Image
+    import io
+    
     contents = await file.read()
     
-    # Save to file
+    # Compress image
+    img = Image.open(io.BytesIO(contents))
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    # Resize if too large
+    max_size = 1200
+    if img.width > max_size or img.height > max_size:
+        img.thumbnail((max_size, max_size), Image.LANCZOS)
+    
+    # Save compressed
     filename = f"{uuid.uuid4()}.jpg"
     filepath = f"uploads/images/{filename}"
-    
     os.makedirs("uploads/images", exist_ok=True)
-    with open(filepath, "wb") as f:
-        f.write(contents)
+    img.save(filepath, "JPEG", quality=75, optimize=True)
     
     return {"url": f"/uploads/images/{filename}"}
 
