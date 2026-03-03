@@ -3,6 +3,13 @@ from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
 
+# Try to import PostGIS types, fallback to basic types if not available
+try:
+    from geoalchemy2 import Geometry
+    HAS_POSTGIS = True
+except ImportError:
+    HAS_POSTGIS = False
+
 
 class Cleaner(SQLModel, table=True):
     __tablename__ = "cleaners"
@@ -16,6 +23,9 @@ class Cleaner(SQLModel, table=True):
     phone: str
     password_hash: Optional[str] = None
     status: str = "active"
+    # Location (for nearby search)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 
 
@@ -55,6 +65,9 @@ class Property(SQLModel, table=True):
     postal_code: str = ""
     floor: int = 0
     area: float = 0.0
+    # Location (for nearby search)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     status: str = "active"
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 
@@ -68,7 +81,6 @@ class Order(SQLModel, table=True):
         Index("idx_order_checkout_time", "checkout_time"),
         Index("idx_order_created_at", "created_at"),
         Index("idx_order_host_phone", "host_phone"),
-        # Composite index for common queries
         Index("idx_order_status_checkout", "status", "checkout_time"),
     )
     

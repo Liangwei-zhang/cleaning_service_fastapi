@@ -505,3 +505,134 @@ def get_stats(session: Session = Depends(get_session)):
 def cache_clear(pattern: str):
     """Clear cache"""
     cache.invalidate_pattern(f"*{pattern}*")
+
+
+# ========== Location-based Search ==========
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two points in km (Haversine formula)"""
+    import math
+    R = 6371  # Earth's radius in km
+    
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lon = math.radians(lon2 - lon1)
+    
+    a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    
+    return R * c
+
+
+@router.get("/properties/nearby")
+def get_nearby_properties(
+    latitude: float,
+    longitude: float,
+    radius_km: float = 10,
+    limit: int = 20,
+    session: Session = Depends(get_session)
+):
+    """Get properties within radius ( PostGIS-free implementation)"""
+    # Get all active properties with location
+    statement = select(Property).where(
+        Property.status == "active",
+        Property.latitude.isnot(None),
+        Property.longitude.isnot(None)
+    )
+    results = session.exec(statement).all()
+    
+    # Filter by distance
+    nearby = []
+    for prop in results:
+        distance = calculate_distance(latitude, longitude, prop.latitude, prop.longitude)
+        if distance <= radius_km:
+            nearby.append({
+                **prop.dict(),
+                "distance_km": round(distance, 2)
+            })
+    
+    # Sort by distance
+    nearby.sort(key=lambda x: x["distance_km"])
+    
+    return {
+        "data": nearby[:limit],
+        "total": len(nearby)
+    }
+
+
+@router.get("/cleaners/nearby")
+def get_nearby_cleaners(
+    latitude: float,
+    longitude: float,
+    radius_km: float = 10,
+    limit: int = 20,
+    session: Session = Depends(get_session)
+):
+    """Get available cleaners within radius"""
+    # Get all active cleaners with location
+    statement = select(Cleaner).where(
+        Cleaner.status == "active",
+        Cleaner.latitude.isnot(None),
+        Cleaner.longitude.isnot(None)
+    )
+    results = session.exec(statement).all()
+    
+    # Filter by distance
+    nearby = []
+    for cleaner in results:
+        distance = calculate_distance(latitude, longitude, cleaner.latitude, cleaner.longitude)
+        if distance <= radius_km:
+            nearby.append({
+                **cleaner.dict(),
+                "distance_km": round(distance, 2)
+            })
+    
+    # Sort by distance
+    nearby.sort(key=lambda x: x["distance_km"])
+    
+    return {
+        "data": nearby[:limit],
+        "total": len(nearby)
+    }
+
+
+@router.put("/cleaners/{cleaner_id}/location")
+def update_cleaner_location(
+    cleaner_id: int,
+    data: dict,
+    current_user: dict = Depends(get_current_active_cleaner),
+    session: Session = Depends(get_session)
+):
+    """Update cleaner location"""
+    if current_user["id"] != cleaner_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    cleaner = session.get(Cleaner, cleaner_id)
+    if not cleaner:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+    
+    cleaner.latitude = data.get("latitude")
+    cleaner.longitude = data.get("longitude")
+    
+    session.commit()
+    
+    return {"data": cleaner.dict()}
+
+
+@router.put("/properties/{property_id}/location")
+def update_property_location(
+    property_id: int,
+    data: dict,
+    session: Session = Depends(get_session)
+):
+    """Update property location"""
+    property = session.get(Property, property_id)
+    if not property:
+        raise HTTPException(status_code=404, detail="Property not found")
+    
+    property.latitude = data.get("latitude")
+    property.longitude = data.get("longitude")
+    
+    session.commit()
+    
+    return {"data": property.dict()}
