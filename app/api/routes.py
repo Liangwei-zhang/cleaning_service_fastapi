@@ -205,6 +205,16 @@ def get_hosts(session: Session = Depends(get_session)):
     return {"data": [r.dict() for r in results]}
 
 
+@router.get("/hosts/code/{code}")
+def get_host_by_code(code: str, session: Session = Depends(get_session)):
+    """Get host by code"""
+    statement = select(Host).where(Host.code == code)
+    host = session.exec(statement).first()
+    if host:
+        return {"data": {"id": host.id, "name": host.name, "phone": host.phone, "code": host.code}}
+    return {"data": None}
+
+
 @router.post("/hosts")
 def add_host(data: dict, session: Session = Depends(get_session)):
     """Add new host"""

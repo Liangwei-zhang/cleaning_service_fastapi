@@ -126,6 +126,7 @@
                 border: 1px solid rgba(0, 0, 0, 0.02);
                 text-align: center;
                 transition: transform 0.3s var(--spring);
+                cursor: pointer;
             }
             .stat-card:active {
                 transform: scale(0.95);
@@ -419,6 +420,24 @@
                 display: flex;
                 gap: 10px;
                 padding: 0 20px 15px;
+            }
+            .tab-btn {
+                flex: 1;
+                min-width: 60px;
+                padding: 8px 6px;
+                border-radius: 12px;
+                border: 2px solid transparent;
+                background: var(--glass-white);
+                font-size: 11px;
+                font-weight: 700;
+                color: var(--text-secondary);
+                cursor: pointer;
+                transition: all 0.2s;
+                line-height: 1.3;
+            }
+            .tab-btn.active {
+                background: var(--primary);
+                color: white;
             }
             .sort-select {
                 flex: 1;
@@ -909,11 +928,11 @@
         </header>
 
         <div class="stats-grid">
-            <div class="stat-card">
+            <div class="stat-card" onclick="showPage('my');setMyTaskFilter('accepted');">
                 <span class="stat-val" id="statPending">0</span>
                 <span class="stat-label">待辦任務</span>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" onclick="showPage('my');setMyTaskFilter('all');">
                 <span class="stat-val" id="statTotal">0</span>
                 <span class="stat-label">累計任務</span>
             </div>
@@ -938,14 +957,16 @@
             </button>
         </nav>
 
-        <div class="sort-bar" id="sortBar" style="display: none">
+        <div class="sort-bar" id="sortBar">
             <select
                 class="sort-select"
                 id="sortType"
                 onchange="loadOpenOrders()"
             >
                 <option value="price">💰 金額</option>
-                <option value="time">🕐 時間</option>
+                <option value="price">
+                <option value="distance">📍 距離</option>
+                <option value="price">🕐 時間</option>
             </select>
             <select
                 class="sort-select"
@@ -962,10 +983,10 @@
         </main>
 
         <div class="sort-bar" id="myTaskBar" style="display: none">
-            <select
-                class="sort-select"
-                id="myTaskFilter"
-                onchange="loadMyOrders()"
+            <button class="tab-btn active" data-filter="all" onclick="setMyTaskFilter('all')">📋<br>全部</button>
+            <button class="tab-btn" data-filter="accepted" onclick="setMyTaskFilter('accepted')">🔄<br>進行中</button>
+            <button class="tab-btn" data-filter="completed" onclick="setMyTaskFilter('completed')">✅<br>已完成</button>
+        </div>
             >
                 <option value="all">📋 全部</option>
                 <option value="accepted">🔄 進行中</option>
@@ -1085,6 +1106,48 @@
                 }
             }
 
+            // 計算兩點距離 (km)
+            function calcDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371;
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+
+            // 獲取用戶位置
+            function getUserLocation() {
+                return new Promise((resolve) => {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                            (pos) => resolve({lat: pos.coords.latitude, lng: pos.coords.longitude}),
+                            () => resolve(null)
+                        );
+                    } else {
+                        resolve(null);
+                    }
+                });
+            }
+
+            // 地址轉坐標 (使用 Nominatim)
+            const geocodeCache = {};
+            async function geocodeAddress(address) {
+                if (geocodeCache[address]) return geocodeCache[address];
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`);
+                    const data = await res.json();
+                    if (data && data[0]) {
+                        const result = {lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon)};
+                        geocodeCache[address] = result;
+                        return result;
+                    }
+                } catch(e) {}
+                return null;
+            }
+
             // 統一時間格式化
             function formatTime(isoString) {
                 if (!isoString) return "-";
@@ -1110,10 +1173,26 @@
                             o.assigned_cleaner_id === null,
                     );
 
-                    // 排序
+                    // 異步計算距離，不阻塞顯示
+                    getUserLocation().then(userLoc => {
+                        if (userLoc) {
+                            orders.forEach(async (o) => {
+                                const addr = o.property_address || o.property_name;
+                                if (addr) {
+                                    try {
+                                        const loc = await geocodeAddress(addr);
+                                        if (loc) {
+                                            o.distance = calcDistance(userLoc.lat, userLoc.lng, loc.lat, loc.lng);
+                                        }
+                                    } catch(e) {}
+                                }
+                            });
+                        }
+                    });
+
+                    // 立即排序並顯示
                     const sortType = document.getElementById("sortType").value;
-                    const sortOrder =
-                        document.getElementById("sortOrder").value;
+                    const sortOrder = document.getElementById("sortOrder").value;
                     orders.sort((a, b) => {
                         if (sortType === "price") {
                             const priceA = Number(a.price) || 0;
@@ -1121,6 +1200,12 @@
                             return sortOrder === "desc"
                                 ? priceB - priceA
                                 : priceA - priceB;
+                        } else if (sortType === "distance") {
+                            const distA = Number(a.distance) || 999999;
+                            const distB = Number(b.distance) || 999999;
+                            return sortOrder === "desc"
+                                ? distB - distA
+                                : distA - distB;
                         } else {
                             // 時間排序 - created_at
                             const timeA = a.created_at || "";
@@ -1135,6 +1220,7 @@
                     if (orders.length === 0) {
                         list.innerHTML =
                             '<div class="empty-state"><span class="empty-icon">📥</span>目前沒有新任務</div>';
+                        hideLoading();
                         return;
                     }
 
@@ -1181,13 +1267,21 @@
                 }
             }
 
+            let currentMyTaskFilter = 'all';
+            function setMyTaskFilter(filter) {
+                currentMyTaskFilter = filter;
+                document.querySelectorAll('#myTaskBar .tab-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.filter === filter));
+                });
+                loadMyOrders();
+            }
+
             async function loadMyOrders() {
                 try {
                     showLoading();
                     const res = await fetch(API + "/orders");
                     const data = await res.json();
-                    const filter =
-                        document.getElementById("myTaskFilter").value;
+                    const filter = currentMyTaskFilter;
                     let orders = (data.data || []).filter(
                         (o) =>
                             Number(o.assigned_cleaner_id) === cleanerId &&
@@ -1196,7 +1290,11 @@
 
                     // 過濾
                     if (filter !== "all") {
-                        orders = orders.filter((o) => o.status === filter);
+                        if (filter === "accepted") {
+                            orders = orders.filter((o) => o.status === "accepted" || o.status === "arrived");
+                        } else {
+                            orders = orders.filter((o) => o.status === filter);
+                        }
                     }
 
                     document.getElementById("myOrdersList").innerHTML =
