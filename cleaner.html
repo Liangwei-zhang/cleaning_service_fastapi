@@ -451,6 +451,23 @@
                 appearance: none;
                 box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
             }
+            .sort-btn {
+                flex: 1;
+                padding: 10px 14px;
+                border-radius: 14px;
+                background: var(--glass-white);
+                border: 1px solid var(--glass-border);
+                font-weight: 600;
+                color: var(--text-muted);
+                font-size: 14px;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .sort-btn.active {
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
+            }
 
             /* --- 3. 任務卡片與導航連結 --- */
             .card {
@@ -957,24 +974,10 @@
             </button>
         </nav>
 
-        <div class="sort-bar" id="sortBar">
-            <select
-                class="sort-select"
-                id="sortType"
-                onchange="loadOpenOrders()"
-            >
-                <option value="price">💰 金額</option>
-                <option value="distance">📍 距離</option>
-                <option value="price">🕐 時間</option>
-            </select>
-            <select
-                class="sort-select"
-                id="sortOrder"
-                onchange="loadOpenOrders()"
-            >
-                <option value="desc">從高到低 ↓</option>
-                <option value="asc">從低到高 ↑</option>
-            </select>
+        <div class="sort-bar" id="sortBar" style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="sort-btn" id="btnPrice" onclick="toggleSort('price')">💰 金額</button>
+            <button class="sort-btn" id="btnDistance" onclick="toggleSort('distance')">📍 距離</button>
+            <button class="sort-btn" id="btnTime" onclick="toggleSort('time')">🕐 時間</button>
         </div>
 
         <main id="pageOpen">
@@ -1154,6 +1157,27 @@
                 } catch(e) { return isoString; }
             }
 
+            // 排序狀態
+            let currentSort = { type: 'time', desc: true };
+            
+            function toggleSort(type) {
+                if (currentSort.type === type) {
+                    currentSort.desc = !currentSort.desc;
+                } else {
+                    currentSort.type = type;
+                    currentSort.desc = true;
+                }
+                // 更新按鈕樣式
+                ['price', 'distance', 'time'].forEach(t => {
+                    const btn = document.getElementById('btn' + t.charAt(0).toUpperCase() + t.slice(1));
+                    if (btn) {
+                        btn.classList.toggle('active', currentSort.type === t);
+                        btn.innerHTML = (t === 'price' ? '💰 金額' : t === 'distance' ? '📍 距離' : '🕐 時間') + (currentSort.type === t ? (currentSort.desc ? ' ↓' : ' ↑') : '');
+                    }
+                });
+                loadOpenOrders();
+            }
+
             async function loadOpenOrders() {
                 try {
                     showLoading();
@@ -1183,28 +1207,22 @@
                         }
 
                         // 排序
-                        const sortType = document.getElementById("sortType").value;
-                        const sortOrder = document.getElementById("sortOrder").value;
+                        const sortType = currentSort.type;
+                        const desc = currentSort.desc;
                         orders.sort((a, b) => {
                             if (sortType === "price") {
                                 const priceA = Number(a.price) || 0;
                                 const priceB = Number(b.price) || 0;
-                                return sortOrder === "desc"
-                                    ? priceB - priceA
-                                    : priceA - priceB;
+                                return desc ? priceB - priceA : priceA - priceB;
                             } else if (sortType === "distance") {
                                 const distA = Number(a.distance) || 999999;
                                 const distB = Number(b.distance) || 999999;
-                                return sortOrder === "desc"
-                                    ? distB - distA
-                                    : distA - distB;
+                                return desc ? distB - distA : distA - distB;
                             } else {
                                 // 時間排序 - created_at
                                 const timeA = a.created_at || "";
                                 const timeB = b.created_at || "";
-                                return sortOrder === "desc"
-                                    ? timeB.localeCompare(timeA)
-                                    : timeA.localeCompare(timeB);
+                                return desc ? timeB.localeCompare(timeA) : timeA.localeCompare(timeB);
                             }
                         });
 
