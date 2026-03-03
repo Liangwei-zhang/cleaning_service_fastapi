@@ -5,14 +5,116 @@ from typing import List, Optional
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.models.cleaning import Cleaner, Host, Property, Order
 from app.core.database import get_session
+from app.core.security import (
+    get_password_hash, verify_password, create_access_token,
+    get_current_user, get_current_active_cleaner, get_current_active_host
+)
 from app.services.cache import cache, CacheKeys
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/api", tags=["api"])
+
+
+# ========== Auth ==========
+@router.post("/auth/login")
+def login(data: dict, session: Session = Depends(get_session)):
+    """Login with phone and password, returns JWT token"""
+    phone = data.get("phone", "")
+    password = data.get("password", "")
+    user_type = data.get("type", "cleaner")  # cleaner or host
+    
+    # Find user
+    if user_type == "cleaner":
+        statement = select(Cleaner).where(Cleaner.phone == phone)
+    else:
+        statement = select(Host).where(Host.phone == phone)
+    
+    user = session.exec(statement).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify password
+    if not user.password_hash or not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    
+    # Create token
+    access_token = create_access_token(
+        data={"sub": user.id, "type": user_type},
+        expires_delta=timedelta(hours=24)
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "phone": user.phone,
+            "type": user_type
+        }
+    }
+
+
+@router.post("/auth/register")
+def register(data: dict, session: Session = Depends(get_session)):
+    """Register new user"""
+    phone = data.get("phone", "")
+    password = data.get("password", "")
+    name = data.get("name", "")
+    user_type = data.get("type", "cleaner")
+    
+    if not phone or not password:
+        raise HTTPException(status_code=400, detail="Phone and password required")
+    
+    # Check if user exists
+    if user_type == "cleaner":
+        statement = select(Cleaner).where(Cleaner.phone == phone)
+    else:
+        statement = select(Host).where(Host.phone == phone)
+    
+    existing = session.exec(statement).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="User already exists")
+    
+    # Create user with hashed password
+    password_hash = get_password_hash(password)
+    
+    if user_type == "cleaner":
+        user = Cleaner(name=name, phone=phone, password_hash=password_hash, status="active")
+    else:
+        user = Host(name=name, phone=phone, password_hash=password_hash, code=phone)
+    
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    
+    # Create token
+    access_token = create_access_token(
+        data={"sub": user.id, "type": user_type},
+        expires_delta=timedelta(hours=24)
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "phone": user.phone,
+            "type": user_type
+        }
+    }
+
+
+@router.get("/auth/me")
+def get_me(current_user: dict = Depends(get_current_user)):
+    """Get current user info"""
+    return current_user
 
 
 # ========== Cleaners ==========

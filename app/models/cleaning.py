@@ -9,6 +9,7 @@ class Cleaner(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     phone: str
+    password_hash: Optional[str] = None
     status: str = "active"
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 
@@ -19,6 +20,7 @@ class Host(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     phone: str
+    password_hash: Optional[str] = None
     code: str
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 

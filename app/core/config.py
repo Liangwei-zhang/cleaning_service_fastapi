@@ -9,6 +9,10 @@ class Settings(BaseSettings):
         "postgresql://postgres:postgres@localhost:5432/cleaning"
     )
     
+    # Security
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-production-min-32-chars")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    
     # Redis Cache
     REDIS_ENABLED: bool = os.getenv("REDIS_ENABLED", "false").lower() == "true"
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
