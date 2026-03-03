@@ -1486,15 +1486,35 @@
                 grid.innerHTML = html;
             }
 
+            // 上傳圖片到服務器
+            async function uploadPhotoToServer(file) {
+                const formData = new FormData();
+                formData.append("file", file);
+                const res = await fetch(`${API}/upload/image`, {
+                    method: "POST",
+                    body: formData,
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    return data.url;
+                }
+                throw new Error("上傳失敗");
+            }
+
             function triggerPhotoUpload(index) {
                 const input = document.getElementById("photoInput");
-                input.onchange = (e) => {
+                input.onchange = async (e) => {
                     const file = e.target.files[0];
                     if (file) {
-                        compressImage(file, 800, 0.7, (base64) => {
-                            uploadedPhotos[index] = base64;
+                        try {
+                            showToast("上傳中...");
+                            const url = await uploadPhotoToServer(file);
+                            uploadedPhotos[index] = url;
                             renderPhotoGrid();
-                        });
+                            showToast("上傳成功");
+                        } catch (err) {
+                            showToast("上傳失敗，請重試");
+                        }
                     }
                     input.value = "";
                 };

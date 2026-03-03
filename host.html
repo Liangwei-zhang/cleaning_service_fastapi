@@ -1599,6 +1599,7 @@
                     });
                     if (res.ok) {
                         showToast("✅ 驗收成功！");
+                        closePhotoGallery();
                         loadOrders();
                     } else {
                         showToast("驗收失敗");
@@ -1659,7 +1660,7 @@
                 if (acceptedByHost === 1) {
                     actions.innerHTML = `<div style="padding:16px;background:#E8F5E9;border-radius:16px;text-align:center;color:#2E7D32;font-weight:700;font-size:16px;">✅ 已驗收</div>`;
                 } else {
-                    actions.innerHTML = `<button  style="width:100%;padding:18px;border-radius:16px;border:none;background:var(--primary);color:white;font-weight:700;font-size:16px;cursor:pointer;">✅ 驗收完成</button>`;
+                    actions.innerHTML = `<button onclick="acceptCompletion(${currentViewOrderId})" style="width:100%;padding:18px;border-radius:16px;border:none;background:var(--primary);color:white;font-weight:700;font-size:16px;cursor:pointer;">✅ 驗收完成</button>`;
                 }
 
                 document
