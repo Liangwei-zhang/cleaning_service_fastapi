@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-production-min-32-chars")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
+    RATE_LIMIT_REQUESTS: int = 60  # per window
+    RATE_LIMIT_WINDOW: int = 60  # seconds
+    
     # Redis Cache
     REDIS_ENABLED: bool = os.getenv("REDIS_ENABLED", "false").lower() == "true"
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")

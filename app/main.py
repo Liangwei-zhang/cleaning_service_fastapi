@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,8 +10,10 @@ import logging
 
 from app.core.database import init_db, engine
 from app.core.logging import logger
+from app.core.config import settings
 from app.api.routes import router
 from app.api.websocket import websocket_endpoint
+from app.services.rate_limit import rate_limiter
 
 
 @asynccontextmanager
@@ -44,6 +46,21 @@ app.add_middleware(
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
+    
+    # Rate limiting
+    if settings.RATE_LIMIT_ENABLED:
+        client_ip = request.client.host if request.client else "unknown"
+        if not request.url.path.startswith("/ws") and request.url.path != "/health":
+            if not rate_limiter.is_allowed(
+                f"{client_ip}:{request.url.path}",
+                settings.RATE_LIMIT_REQUESTS,
+                settings.RATE_LIMIT_WINDOW
+            ):
+                return JSONResponse(
+                    status_code=429,
+                    content={"detail": "Too many requests. Please try again later."}
+                )
+    
     logger.info(f"→ {request.method} {request.url.path}")
     
     response = await call_next(request)
