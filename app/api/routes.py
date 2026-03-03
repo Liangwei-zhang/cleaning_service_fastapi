@@ -14,6 +14,7 @@ from app.core.security import (
     get_current_user, get_current_active_cleaner, get_current_active_host
 )
 from app.services.cache import cache, CacheKeys
+from app.services.lock import OrderLock, lock_manager
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -363,22 +364,29 @@ def update_order(order_id: int, data: dict, session: Session = Depends(get_sessi
 
 @router.post("/orders/{order_id}/accept")
 def accept_order(order_id: int, data: dict, session: Session = Depends(get_session)):
-    """Accept/order by cleaner"""
-    order = session.get(Order, order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    
-    if order.status != "open":
-        raise HTTPException(status_code=400, detail="Order not available")
-    
-    cleaner_id = data.get("cleaner_id")
-    order.assigned_cleaner_id = cleaner_id
-    order.status = "accepted"
-    order.assigned_at = datetime.now().isoformat()
-    
-    session.commit()
-    cache_clear("orders")
-    return {"data": order.dict()}
+    """Accept/order by cleaner with distributed lock"""
+    # Use distributed lock to prevent race condition
+    try:
+        with OrderLock(order_id, timeout=10):
+            order = session.get(Order, order_id)
+            if not order:
+                raise HTTPException(status_code=404, detail="Order not found")
+            
+            if order.status != "open":
+                raise HTTPException(status_code=400, detail="Order not available")
+            
+            cleaner_id = data.get("cleaner_id")
+            order.assigned_cleaner_id = cleaner_id
+            order.status = "accepted"
+            order.assigned_at = datetime.now().isoformat()
+            
+            session.commit()
+            cache_clear("orders")
+            return {"data": order.dict()}
+    except Exception as e:
+        if "Failed to acquire lock" in str(e):
+            raise HTTPException(status_code=409, detail="Order is being processed, please try again")
+        raise
 
 
 @router.post("/orders/{order_id}/arrived")

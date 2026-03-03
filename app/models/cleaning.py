@@ -1,3 +1,4 @@
+from sqlalchemy import Column, Integer, String, Float, DateTime, Index, Text
 from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime
@@ -5,6 +6,10 @@ from datetime import datetime
 
 class Cleaner(SQLModel, table=True):
     __tablename__ = "cleaners"
+    __table_args__ = (
+        Index("idx_cleaner_phone", "phone"),
+        Index("idx_cleaner_status", "status"),
+    )
     
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
@@ -16,6 +21,9 @@ class Cleaner(SQLModel, table=True):
 
 class Host(SQLModel, table=True):
     __tablename__ = "hosts"
+    __table_args__ = (
+        Index("idx_host_phone", "phone"),
+    )
     
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
@@ -27,6 +35,11 @@ class Host(SQLModel, table=True):
 
 class Property(SQLModel, table=True):
     __tablename__ = "properties"
+    __table_args__ = (
+        Index("idx_property_host_phone", "host_phone"),
+        Index("idx_property_status", "status"),
+        Index("idx_property_city", "city"),
+    )
     
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
@@ -48,6 +61,16 @@ class Property(SQLModel, table=True):
 
 class Order(SQLModel, table=True):
     __tablename__ = "orders"
+    __table_args__ = (
+        Index("idx_order_property_id", "property_id"),
+        Index("idx_order_status", "status"),
+        Index("idx_order_cleaner_id", "assigned_cleaner_id"),
+        Index("idx_order_checkout_time", "checkout_time"),
+        Index("idx_order_created_at", "created_at"),
+        Index("idx_order_host_phone", "host_phone"),
+        # Composite index for common queries
+        Index("idx_order_status_checkout", "status", "checkout_time"),
+    )
     
     id: Optional[int] = Field(default=None, primary_key=True)
     property_id: int
