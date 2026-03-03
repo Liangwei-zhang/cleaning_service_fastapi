@@ -1165,10 +1165,11 @@
                             o.assigned_cleaner_id === null,
                     );
 
-                    // 異步計算距離，不阻塞顯示
-                    getUserLocation().then(userLoc => {
+                    // 異步計算距離，完成後排序並顯示
+                    getUserLocation().then(async userLoc => {
                         if (userLoc) {
-                            orders.forEach(async (o) => {
+                            // 等待所有地址解析完成
+                            await Promise.all(orders.map(async (o) => {
                                 const addr = o.property_address || o.property_name;
                                 if (addr) {
                                     try {
@@ -1178,45 +1179,44 @@
                                         }
                                     } catch(e) {}
                                 }
-                            });
+                            }));
                         }
-                    });
 
-                    // 立即排序並顯示
-                    const sortType = document.getElementById("sortType").value;
-                    const sortOrder = document.getElementById("sortOrder").value;
-                    orders.sort((a, b) => {
-                        if (sortType === "price") {
-                            const priceA = Number(a.price) || 0;
-                            const priceB = Number(b.price) || 0;
-                            return sortOrder === "desc"
-                                ? priceB - priceA
-                                : priceA - priceB;
-                        } else if (sortType === "distance") {
-                            const distA = Number(a.distance) || 999999;
-                            const distB = Number(b.distance) || 999999;
-                            return sortOrder === "desc"
-                                ? distB - distA
-                                : distA - distB;
-                        } else {
-                            // 時間排序 - created_at
-                            const timeA = a.created_at || "";
-                            const timeB = b.created_at || "";
-                            return sortOrder === "desc"
-                                ? timeB.localeCompare(timeA)
-                                : timeA.localeCompare(timeB);
+                        // 排序
+                        const sortType = document.getElementById("sortType").value;
+                        const sortOrder = document.getElementById("sortOrder").value;
+                        orders.sort((a, b) => {
+                            if (sortType === "price") {
+                                const priceA = Number(a.price) || 0;
+                                const priceB = Number(b.price) || 0;
+                                return sortOrder === "desc"
+                                    ? priceB - priceA
+                                    : priceA - priceB;
+                            } else if (sortType === "distance") {
+                                const distA = Number(a.distance) || 999999;
+                                const distB = Number(b.distance) || 999999;
+                                return sortOrder === "desc"
+                                    ? distB - distA
+                                    : distA - distB;
+                            } else {
+                                // 時間排序 - created_at
+                                const timeA = a.created_at || "";
+                                const timeB = b.created_at || "";
+                                return sortOrder === "desc"
+                                    ? timeB.localeCompare(timeA)
+                                    : timeA.localeCompare(timeB);
+                            }
+                        });
+
+                        const list = document.getElementById("openOrdersList");
+                        if (orders.length === 0) {
+                            list.innerHTML =
+                                '<div class="empty-state"><span class="empty-icon">📥</span>目前沒有新任務</div>';
+                            hideLoading();
+                            return;
                         }
-                    });
 
-                    const list = document.getElementById("openOrdersList");
-                    if (orders.length === 0) {
-                        list.innerHTML =
-                            '<div class="empty-state"><span class="empty-icon">📥</span>目前沒有新任務</div>';
-                        hideLoading();
-                        return;
-                    }
-
-                    list.innerHTML = orders
+                        list.innerHTML = orders
                         .map(
                             (o) => `
                 <div class="card">
@@ -1242,6 +1242,7 @@
                         )
                         .join("");
                     hideLoading();
+                    }); // end getUserLocation().then()
                 } catch (e) {
                     hideLoading();
                     showToast("載入訂單失敗");
