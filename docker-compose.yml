@@ -85,3 +85,15 @@ services:
 volumes:
   postgres_data:
   redis_data:
+
+  # Celery Worker
+  celery:
+    build: .
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/cleaning
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      - redis
+      - postgres

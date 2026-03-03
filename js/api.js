@@ -188,3 +188,71 @@ function formatPrice(price) {
 function safeInnerHTML(element, html) {
   element.innerHTML = html;
 }
+
+// Skeleton Screen Helpers
+function showSkeleton(containerId, type = 'card') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    let skeleton = '';
+    
+    if (type === 'card') {
+        skeleton = `
+            <div class="skeleton-card">
+                <div class="skeleton-order-header">
+                    <div class="skeleton skeleton-avatar"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                </div>
+                <div class="skeleton-order-body">
+                    <div class="skeleton skeleton-text-lg"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                </div>
+                <div class="skeleton skeleton-button"></div>
+            </div>
+        `;
+    } else if (type === 'list') {
+        skeleton = Array(5).fill(`
+            <div class="skeleton-card">
+                <div class="skeleton skeleton-text-lg" style="margin-bottom: 12px;"></div>
+                <div class="skeleton skeleton-text"></div>
+            </div>
+        `).join('');
+    } else if (type === 'stats') {
+        skeleton = `
+            <div class="skeleton-stats">
+                <div class="skeleton-stat">
+                    <div class="skeleton skeleton-stat-number"></div>
+                    <div class="skeleton skeleton-stat-label"></div>
+                </div>
+                <div class="skeleton-stat">
+                    <div class="skeleton skeleton-stat-number"></div>
+                    <div class="skeleton skeleton-stat-label"></div>
+                </div>
+                <div class="skeleton-stat">
+                    <div class="skeleton skeleton-stat-number"></div>
+                    <div class="skeleton skeleton-stat-label"></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = skeleton;
+}
+
+function hideSkeleton(containerId) {
+    // Skeleton will be replaced by actual content
+}
+
+// Lazy load with skeleton
+async function loadWithSkeleton(containerId, loadFunction, type = 'card') {
+    showSkeleton(containerId, type);
+    
+    try {
+        const data = await loadFunction();
+        return data;
+    } catch (error) {
+        console.error('Load failed:', error);
+        return null;
+    }
+}
