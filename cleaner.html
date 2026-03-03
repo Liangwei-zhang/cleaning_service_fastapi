@@ -1595,10 +1595,11 @@
 
             // 隱藏門牌號 - 只顯示街道、城市、省
             function shortAddr(item) {
-                // 訂單對象
+                // 優先使用拆分字段
                 if (
                     item.property_province !== undefined ||
-                    item.property_city !== undefined
+                    item.property_city !== undefined ||
+                    item.property_street !== undefined
                 ) {
                     const parts = [];
                     if (item.property_street) parts.push(item.property_street);
@@ -1606,9 +1607,9 @@
                     if (item.property_province)
                         parts.push(item.property_province);
                     if (parts.length > 0) return parts.join(", ");
-                    // 沒有拆分字段時使用原地址
-                    if (item.property_address) return item.property_address;
                 }
+                // 沒有拆分字段時使用原地址
+                if (item.property_address) return item.property_address;
                 return "無地址";
             }
 
