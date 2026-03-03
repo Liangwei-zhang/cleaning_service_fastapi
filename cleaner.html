@@ -1235,17 +1235,6 @@
                     <div class="info-row">📍 ${shortAddr(o)}</div>
                     <div class="info-row">🕐 退房時間: ${formatTime(o.checkout_time)}</div>
                     ${
-                        o.voice_url
-                            ? `
-                        <div class="voice-player">
-                            <button class="voice-btn" onclick="playVoice(this, '${o.voice_url}')">▶</button>
-                            <audio preload="none" src="${o.voice_url}" preload="none"></audio>
-                            <span style="font-size:12px;color:var(--text-muted);font-weight:600;">房東語音備註</span>
-                        </div>
-                    `
-                            : ""
-                    }
-                    ${
                         o.text_notes
                             ? `
                         <div class="info-row" style="background:var(--bg-light);padding:10px;border-radius:8px;margin:8px 0;">
@@ -1310,17 +1299,6 @@
                         <div class="info-row">📍 ${fullAddr(o)}</div>
                         <div class="info-row">📱 <a href="tel:${e(o.host_phone)}" style="color:var(--primary);text-decoration:none;">${e(o.host_phone)}</a> (房東)</div>
                         <div class="info-row">🕐 ${formatTime(o.checkout_time)}</div>
-                        ${
-                            o.voice_url
-                                ? `
-                            <div class="voice-player">
-                                <button class="voice-btn" onclick="playVoice(this, '${o.voice_url}')">▶</button>
-                                <audio preload="none" src="${o.voice_url}" preload="none"></audio>
-                                <span style="font-size:12px;color:var(--text-muted);font-weight:600;">房東語音備註</span>
-                            </div>
-                        `
-                                : ""
-                        }
                         ${
                             o.text_notes
                                 ? `

@@ -21,6 +21,7 @@ class Cleaner(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     phone: str
+    code: Optional[str] = None
     password_hash: Optional[str] = None
     status: str = "active"
     # Location (for nearby search)

@@ -244,6 +244,15 @@ def get_properties(
     return {"data": [r.dict() for r in results]}
 
 
+@router.get("/properties/{property_id}")
+def get_property(property_id: int, session: Session = Depends(get_session)):
+    """Get single property"""
+    prop = session.get(Property, property_id)
+    if prop:
+        return {"data": prop.dict()}
+    return {"data": None}
+
+
 @router.post("/properties")
 def add_property(data: dict, session: Session = Depends(get_session)):
     """Add new property"""
@@ -316,8 +325,19 @@ def get_orders(
         statement = statement.where(Order.status == status)
     results = session.exec(statement).all()
     
+    # Enrich with property info
+    data = []
+    for r in results:
+        order_dict = r.dict()
+        if r.property_id:
+            prop = session.get(Property, r.property_id)
+            if prop:
+                order_dict["property_name"] = prop.name
+                order_dict["property_address"] = prop.address
+        data.append(order_dict)
+    
     return {
-        "data": [r.dict() for r in results],
+        "data": data,
         "pagination": {
             "page": page,
             "limit": limit,
