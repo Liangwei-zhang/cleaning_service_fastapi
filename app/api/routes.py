@@ -666,3 +666,42 @@ def update_property_location(
     session.commit()
     
     return {"data": property.dict()}
+
+
+# ========== Geocode ==========
+import httpx
+import re
+
+@router.get("/geocode")
+async def geocode_address(address: str):
+    """Geocode address using Nominatim"""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"q": address, "format": "json", "limit": 1, "addressdetails": 1},
+                headers={"User-Agent": "SmartClean/1.0"},
+                timeout=10.0
+            )
+            data = resp.json()
+            if not data:
+                return {"success": False, "error": "Address not found"}
+            
+            result = data[0]
+            addr = result.get("address", {})
+            
+            # Parse display_name for additional info
+            display = result.get("display_name", "")
+            
+            return {
+                "success": True,
+                "province": addr.get("state", "") or addr.get("province", ""),
+                "city": addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality", ""),
+                "street": addr.get("road", ""),
+                "house_number": addr.get("house_number", ""),
+                "postcode": addr.get("postcode", ""),
+                "latitude": float(result.get("lat", 0)),
+                "longitude": float(result.get("lon", 0)),
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
