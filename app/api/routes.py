@@ -72,15 +72,27 @@ def register(data: dict, session: Session = Depends(get_session)):
     if not phone or not password:
         raise HTTPException(status_code=400, detail="Phone and password required")
     
-    # Check if user exists
+    # Check if user exists in both tables with clear error messages
     if user_type == "cleaner":
-        statement = select(Cleaner).where(Cleaner.phone == phone)
+        # Check if phone exists in cleaners
+        existing_cleaner = session.exec(select(Cleaner).where(Cleaner.phone == phone)).first()
+        if existing_cleaner:
+            raise HTTPException(status_code=400, detail="此電話號碼已被清潔工註冊")
+        
+        # Check cross-table: phone exists in hosts
+        existing_host = session.exec(select(Host).where(Host.phone == phone)).first()
+        if existing_host:
+            raise HTTPException(status_code=400, detail="此電話號碼已被房東註冊，無法註冊為清潔工")
     else:
-        statement = select(Host).where(Host.phone == phone)
-    
-    existing = session.exec(statement).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="User already exists")
+        # Check if phone exists in hosts
+        existing_host = session.exec(select(Host).where(Host.phone == phone)).first()
+        if existing_host:
+            raise HTTPException(status_code=400, detail="此電話號碼已被房東註冊")
+        
+        # Check cross-table: phone exists in cleaners
+        existing_cleaner = session.exec(select(Cleaner).where(Cleaner.phone == phone)).first()
+        if existing_cleaner:
+            raise HTTPException(status_code=400, detail="此電話號碼已被清潔工註冊，無法註冊為房東")
     
     # Create user with hashed password
     password_hash = get_password_hash(password)
