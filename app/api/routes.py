@@ -61,6 +61,13 @@ def login(data: dict, session: Session = Depends(get_session)):
     }
 
 
+def generate_unique_code(length: int = 6) -> str:
+    """Generate unique alphanumeric code"""
+    import random
+    import string
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+
+
 @router.post("/auth/register")
 def register(data: dict, session: Session = Depends(get_session)):
     """Register new user"""
@@ -83,6 +90,9 @@ def register(data: dict, session: Session = Depends(get_session)):
         existing_host = session.exec(select(Host).where(Host.phone == phone)).first()
         if existing_host:
             raise HTTPException(status_code=400, detail="此電話號碼已被房東註冊，無法註冊為清潔工")
+        
+        # Generate unique code for cleaner
+        code = generate_unique_code()
     else:
         # Check if phone exists in hosts
         existing_host = session.exec(select(Host).where(Host.phone == phone)).first()
@@ -93,33 +103,27 @@ def register(data: dict, session: Session = Depends(get_session)):
         existing_cleaner = session.exec(select(Cleaner).where(Cleaner.phone == phone)).first()
         if existing_cleaner:
             raise HTTPException(status_code=400, detail="此電話號碼已被清潔工註冊，無法註冊為房東")
+        
+        # Generate unique code for host
+        code = generate_unique_code()
     
     # Create user with hashed password
     password_hash = get_password_hash(password)
     
     if user_type == "cleaner":
-        user = Cleaner(name=name, phone=phone, password_hash=password_hash, status="active")
+        user = Cleaner(name=name, phone=phone, password_hash=password_hash, status="active", code=code)
     else:
-        user = Host(name=name, phone=phone, password_hash=password_hash, code=phone)
+        user = Host(name=name, phone=phone, password_hash=password_hash, code=code)
     
     session.add(user)
     session.commit()
     session.refresh(user)
     
-    # Create token
-    access_token = create_access_token(
-        data={"sub": user.id, "type": user_type},
-        expires_delta=timedelta(hours=24)
-    )
-    
     return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": {
+        "success": True,
+        "data": {
             "id": user.id,
-            "name": user.name,
-            "phone": user.phone,
-            "type": user_type
+            "code": code
         }
     }
 
@@ -164,16 +168,19 @@ def add_cleaner(data: dict, session: Session = Depends(get_session)):
     if existing_host:
         raise HTTPException(status_code=400, detail="此電話號碼已存在於房東，請更換")
     
+    code = data.get("code") or generate_unique_code()
+    
     cleaner = Cleaner(
         name=data.get("name", ""),
         phone=phone,
+        code=code,
         status=data.get("status", "active")
     )
     session.add(cleaner)
     session.commit()
     session.refresh(cleaner)
     cache_clear("cleaners")
-    return {"data": {"id": cleaner.id}}
+    return {"data": {"id": cleaner.id, "code": code}}
 
 
 @router.delete("/cleaners/{cleaner_id}")
@@ -283,12 +290,12 @@ def add_host(data: dict, session: Session = Depends(get_session)):
     host = Host(
         name=data.get("name", ""),
         phone=phone,
-        code=data.get("code", "")
+        code=data.get("code") or generate_unique_code()
     )
     session.add(host)
     session.commit()
     session.refresh(host)
-    return {"data": {"id": host.id}}
+    return {"data": {"id": host.id, "code": host.code}}
 
 
 @router.put("/hosts/{host_id}")
