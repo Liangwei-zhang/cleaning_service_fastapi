@@ -229,7 +229,20 @@
         <p style="font-size:12px; color:#666; margin-top:8px;">※ 驗證碼將由系統自動生成</p>
         <button id="saveBtn" onclick="handleSave()" style="width:100%; padding:18px; border-radius:18px; border:none; background:var(--midnight); color:white; font-weight:800; font-size:16px; margin-top:10px;">儲存</button>
     </div>
+    <div class="toast" id="toast"></div>
 </div>
+
+<style>
+    .toast {
+        position: fixed; top: 40px; left: 50%; transform: translateX(-50%) translateY(-100px);
+        background: var(--midnight); color: white; padding: 14px 28px;
+        border-radius: 40px; font-size: 14px; font-weight: 700;
+        box-shadow: 0 20px 40px oklch(0% 0 0 / 20%);
+        transition: 0.6s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        z-index: 2000; opacity: 0;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
 
 <script>
     // XSS 防護函數
@@ -243,6 +256,13 @@
             .replace(/'/g, '&#039;');
     }
     const e = escapeHtml;
+    
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
     
     const API = '/api';
     let currentTab = 'cleaners';
