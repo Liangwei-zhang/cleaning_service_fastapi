@@ -258,8 +258,11 @@
     const e = escapeHtml;
     
     function showToast(msg) {
+        if (!msg) return;
         const t = document.getElementById('toast');
-        t.textContent = msg;
+        // Handle FastAPI error response {detail: "..."}
+        const errorMsg = msg.detail || msg.error || msg;
+        t.textContent = errorMsg;
         t.classList.add('show');
         setTimeout(() => t.classList.remove('show'), 3000);
     }
@@ -273,12 +276,13 @@
         if (body) opt.body = JSON.stringify(body);
         try {
             const res = await fetch(`${API}${path}`, opt);
-            const data = res.json();
+            const data = await res.json();
             hideLoading();
             return data;
         } catch (e) { 
             hideLoading();
             console.error("API Error", e); 
+            return { error: "網絡錯誤，請稍後重試" };
         }
     }
 
@@ -447,9 +451,13 @@
         
         if (id) {
             // 編輯
-            await req(`/${type}/${id}`, 'PUT', body);
+            const result = await req(`/${type}/${id}`, 'PUT', body);
             toggleModal('editModal', false);
-            showToast('更新成功');
+            if (result.error) {
+                showToast(result.error);
+            } else {
+                showToast('更新成功');
+            }
         } else {
             // 新增 - 自動生成驗證碼
             const result = await req(`/${type}`, 'POST', body);
@@ -465,8 +473,12 @@
 
     async function handleDelete(id) {
         if (confirm('確定要永久刪除此帳號嗎？')) {
-            await req(`/${currentTab}/${id}`, 'DELETE');
-            showToast('刪除成功');
+            const result = await req(`/${currentTab}/${id}`, 'DELETE');
+            if (result.error) {
+                showToast(result.error);
+            } else {
+                showToast('刪除成功');
+            }
             loadData();
         }
     }
