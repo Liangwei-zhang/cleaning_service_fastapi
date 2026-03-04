@@ -473,16 +473,20 @@
             // 編輯
             const result = await req(`/${type}/${id}`, 'PUT', body);
             toggleModal('editModal', false);
-            if (result.error) {
-                showToast(result.error);
+            // 支援 error 和 detail 兩種錯誤格式
+            const errMsg = result.error || result.detail;
+            if (errMsg) {
+                showToast(errMsg);
             } else {
                 showToast('更新成功');
             }
         } else {
             // 新增 - 自動生成驗證碼
             const result = await req(`/${type}`, 'POST', body);
-            if (result.error) {
-                showToast(result.error);
+            // 支援 error 和 detail 兩種錯誤格式
+            const errMsg = result.error || result.detail;
+            if (errMsg) {
+                showToast(errMsg);
             } else {
                 toggleModal('editModal', false);
                 showToast('新增成功');
@@ -494,8 +498,9 @@
     async function handleDelete(id) {
         if (confirm('確定要永久刪除此帳號嗎？')) {
             const result = await req(`/${currentTab}/${id}`, 'DELETE');
-            if (result.error) {
-                showToast(result.error);
+            const errMsg = result.error || result.detail;
+            if (errMsg) {
+                showToast(errMsg);
             } else {
                 showToast('刪除成功');
             }
