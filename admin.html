@@ -392,18 +392,18 @@
         container.innerHTML = (users?.data || []).map((u, i) => `
             <div class="id-card" style="animation-delay: ${i * 0.05}s">
                 <div class="card-top">
-                    <div class="pfp">${u.name.charAt(0)}</div>
+                    <div class="pfp">${e(u.name.charAt(0))}</div>
                     <div class="card-body">
-                        <h3>${u.name}</h3>
-                        <p>📞 ${u.phone}</p>
+                        <h3>${e(u.name)}</h3>
+                        <p>📞 ${e(u.phone)}</p>
                     </div>
                 </div>
                 <div class="key-row">
                     <span class="key-label">ACCESS KEY</span>
-                    <span class="key-val"># ${u.code}</span>
+                    <span class="key-val"># ${e(u.code || '')}</span>
                 </div>
                 <div class="card-btns">
-                    <button class="btn btn-edit" data-type="${currentTab}" data-id="${u.id}" data-name="${u.name}" data-phone="${u.phone}" data-code="${u.code}" onclick="var d=this.dataset;openEdit(d.type,Number(d.id),d.name,d.phone,d.code)">編輯內容</button>
+                    <button class="btn btn-edit" data-type="${currentTab}" data-id="${u.id}" data-name="${e(u.name)}" data-phone="${e(u.phone)}" data-code="${e(u.code || '')}" onclick="var d=this.dataset;openEdit(d.type,Number(d.id),d.name,d.phone,d.code)">編輯內容</button>
                     <button class="btn btn-del" onclick="handleDelete(${u.id})">刪除帳號</button>
                 </div>
             </div>
