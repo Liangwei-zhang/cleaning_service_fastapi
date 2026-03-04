@@ -1402,7 +1402,7 @@
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             status: "accepted",
-                            cleaner_id: cleanerId,
+                            assigned_cleaner_id: cleanerId,
                         }),
                     });
                     const data = await res.json();
