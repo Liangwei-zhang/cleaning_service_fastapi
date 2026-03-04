@@ -140,9 +140,21 @@ def get_cleaners(session: Session = Depends(get_session)):
 @router.post("/cleaners")
 def add_cleaner(data: dict, session: Session = Depends(get_session)):
     """Add new cleaner"""
+    phone = data.get("phone", "")
+    
+    # Check if phone exists in cleaners
+    existing_cleaner = session.exec(select(Cleaner).where(Cleaner.phone == phone)).first()
+    if existing_cleaner:
+        raise HTTPException(status_code=400, detail="此電話號碼已存在於清潔工，請更換")
+    
+    # Check if phone exists in hosts (cross-table validation)
+    existing_host = session.exec(select(Host).where(Host.phone == phone)).first()
+    if existing_host:
+        raise HTTPException(status_code=400, detail="此電話號碼已存在於房東，請更換")
+    
     cleaner = Cleaner(
         name=data.get("name", ""),
-        phone=data.get("phone", ""),
+        phone=phone,
         status=data.get("status", "active")
     )
     session.add(cleaner)
@@ -162,6 +174,32 @@ def delete_cleaner(cleaner_id: int, session: Session = Depends(get_session)):
     session.commit()
     cache_clear("cleaners")
     return {"message": "Deleted"}
+
+
+@router.put("/cleaners/{cleaner_id}")
+def update_cleaner(cleaner_id: int, data: dict, session: Session = Depends(get_session)):
+    """Update cleaner"""
+    cleaner = session.get(Cleaner, cleaner_id)
+    if not cleaner:
+        raise HTTPException(status_code=404, detail="Cleaner not found")
+    if "name" in data:
+        cleaner.name = data["name"]
+    if "phone" in data:
+        new_phone = data["phone"]
+        # Check if phone exists in other cleaners
+        existing_cleaner = session.exec(select(Cleaner).where(Cleaner.phone == new_phone, Cleaner.id != cleaner_id)).first()
+        if existing_cleaner:
+            raise HTTPException(status_code=400, detail="此電話號碼已存在於其他清潔工，請更換")
+        # Check if phone exists in hosts
+        existing_host = session.exec(select(Host).where(Host.phone == new_phone)).first()
+        if existing_host:
+            raise HTTPException(status_code=400, detail="此電話號碼已存在於房東，請更換")
+        cleaner.phone = new_phone
+    if "code" in data:
+        cleaner.code = data["code"]
+    session.commit()
+    cache_clear("cleaners")
+    return {"success": True, "data": cleaner.dict()}
 
 
 # ========== Hosts ==========
@@ -218,15 +256,61 @@ def get_host_by_code(code: str, session: Session = Depends(get_session)):
 @router.post("/hosts")
 def add_host(data: dict, session: Session = Depends(get_session)):
     """Add new host"""
+    phone = data.get("phone", "")
+    
+    # Check if phone exists in hosts
+    existing_host = session.exec(select(Host).where(Host.phone == phone)).first()
+    if existing_host:
+        raise HTTPException(status_code=400, detail="此電話號碼已存在於房東，請更換")
+    
+    # Check if phone exists in cleaners (cross-table validation)
+    existing_cleaner = session.exec(select(Cleaner).where(Cleaner.phone == phone)).first()
+    if existing_cleaner:
+        raise HTTPException(status_code=400, detail="此電話號碼已存在於清潔工，請更換")
+    
     host = Host(
         name=data.get("name", ""),
-        phone=data.get("phone", ""),
+        phone=phone,
         code=data.get("code", "")
     )
     session.add(host)
     session.commit()
     session.refresh(host)
     return {"data": {"id": host.id}}
+
+
+@router.put("/hosts/{host_id}")
+def update_host(host_id: int, data: dict, session: Session = Depends(get_session)):
+    """Update host"""
+    host = session.get(Host, host_id)
+    if not host:
+        raise HTTPException(status_code=404, detail="Host not found")
+    if "name" in data:
+        host.name = data["name"]
+    if "phone" in data:
+        new_phone = data["phone"]
+        # Check if phone exists in other hosts
+        existing_host = session.exec(select(Host).where(Host.phone == new_phone, Host.id != host_id)).first()
+        if existing_host:
+            raise HTTPException(status_code=400, detail="此電話號碼已存在於其他房東，請更換")
+        # Check if phone exists in cleaners
+        existing_cleaner = session.exec(select(Cleaner).where(Cleaner.phone == new_phone)).first()
+        if existing_cleaner:
+            raise HTTPException(status_code=400, detail="此電話號碼已存在於清潔工，請更換")
+        host.phone = new_phone
+    session.commit()
+    return {"success": True, "data": host.dict()}
+
+
+@router.delete("/hosts/{host_id}")
+def delete_host(host_id: int, session: Session = Depends(get_session)):
+    """Delete host"""
+    host = session.get(Host, host_id)
+    if not host:
+        raise HTTPException(status_code=404, detail="Host not found")
+    session.delete(host)
+    session.commit()
+    return {"message": "Deleted"}
 
 
 # ========== Properties ==========
