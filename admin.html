@@ -429,6 +429,7 @@
             // 編輯
             await req(`/${type}/${id}`, 'PUT', body);
             toggleModal('editModal', false);
+            showToast('更新成功');
         } else {
             // 新增 - 自動生成驗證碼
             const result = await req(`/${type}`, 'POST', body);
@@ -436,6 +437,7 @@
                 showToast(result.error);
             } else {
                 toggleModal('editModal', false);
+                showToast('新增成功');
             }
         }
         loadData();
@@ -444,6 +446,7 @@
     async function handleDelete(id) {
         if (confirm('確定要永久刪除此帳號嗎？')) {
             await req(`/${currentTab}/${id}`, 'DELETE');
+            showToast('刪除成功');
             loadData();
         }
     }
