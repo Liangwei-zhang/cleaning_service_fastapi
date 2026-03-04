@@ -354,14 +354,17 @@
 
             // 更新統計數據
             const totalRev = (orders.data || []).reduce((s, o) => s + (parseInt(o.price) || 0), 0);
-            document.getElementById('statTotal').textContent = `$${totalRev.toLocaleString()}`;
-            document.getElementById('statOrders').textContent = (orders.data || []).length;
+            const statTotal = document.getElementById('statTotal');
+            const statOrders = document.getElementById('statOrders');
+            const statActive = document.getElementById('statActive');
+            if (statTotal) statTotal.textContent = `$${totalRev.toLocaleString()}`;
+            if (statOrders) statOrders.textContent = (orders.data || []).length;
 
             const users = await req('/cleaners');
             const hosts = await req('/hosts');
             const cleaners = users?.data || [];
             const hostsList = hosts?.data || [];
-            document.getElementById('statActive').textContent = cleaners.length + hostsList.length;
+            if (statActive) statActive.textContent = cleaners.length + hostsList.length;
             
             container.innerHTML = (orders.data || []).map((o, i) => {
                 const statusBadge = o.status === 'open' ? 'status-open' : o.status === 'accepted' ? 'status-accepted' : 'status-completed';
@@ -403,7 +406,8 @@
 
         // 清潔夥伴或房東列表
         const users = await req(`/${currentTab}`);
-        document.getElementById('statActive').textContent = (users?.data || []).length;
+        const statActiveEl = document.getElementById('statActive');
+        if (statActiveEl) statActiveEl.textContent = (users?.data || []).length;
 
         container.innerHTML = (users?.data || []).map((u, i) => `
             <div class="id-card" style="animation-delay: ${i * 0.05}s">
