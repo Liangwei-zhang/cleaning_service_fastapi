@@ -270,19 +270,35 @@
     const API = '/api';
     let currentTab = 'cleaners';
 
-    async function req(path, method = 'GET', body = null) {
+    async function req(path, method = 'GET', body = null, timeoutMs = 10000) {
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        
         showLoading();
-        const opt = { method, headers: { 'Content-Type': 'application/json' } };
+        const opt = { 
+            method, 
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal 
+        };
         if (body) opt.body = JSON.stringify(body);
         try {
             const res = await fetch(`${API}${path}`, opt);
+            clearTimeout(timeout);
             const data = await res.json();
             hideLoading();
             return data;
         } catch (e) { 
+            clearTimeout(timeout);
             hideLoading();
+            let msg = "網絡錯誤，請稍後重試";
+            if (e.name === 'AbortError') {
+                msg = "請求超時，請稍後重試";
+            } else if (!navigator.onLine) {
+                msg = "網絡已斷開，請檢查連接";
+            }
             console.error("API Error", e); 
-            return { error: "網絡錯誤，請稍後重試" };
+            return { error: msg };
         }
     }
 
