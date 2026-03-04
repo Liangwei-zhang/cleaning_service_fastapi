@@ -71,13 +71,38 @@ def generate_unique_code(length: int = 6) -> str:
 @router.post("/auth/register")
 def register(data: dict, session: Session = Depends(get_session)):
     """Register new user"""
+    import re
+    
     phone = data.get("phone", "")
     password = data.get("password", "")
     name = data.get("name", "")
     user_type = data.get("type", "cleaner")
     
+    # Input validation
     if not phone or not password:
-        raise HTTPException(status_code=400, detail="Phone and password required")
+        raise HTTPException(status_code=400, detail="電話和密碼為必填項")
+    
+    # Type validation
+    if not isinstance(name, str) or not isinstance(phone, str) or not isinstance(password, str):
+        raise HTTPException(status_code=400, detail="輸入格式錯誤")
+    
+    # Length limits
+    if len(name) > 50:
+        raise HTTPException(status_code=400, detail="名稱不能超過50個字符")
+    if len(phone) > 20:
+        raise HTTPException(status_code=400, detail="電話號碼不能超過20個字符")
+    if len(password) > 100:
+        raise HTTPException(status_code=400, detail="密碼不能超過100個字符")
+    
+    # Special character filter (XSS/SQL injection prevention)
+    if re.search(r"[<>\'\";\\]", name):
+        raise HTTPException(status_code=400, detail="名稱包含非法字符")
+    if re.search(r"[<>\'\";\\]", phone):
+        raise HTTPException(status_code=400, detail="電話號碼包含非法字符")
+    
+    # Require at least some valid characters (not just numbers/symbols)
+    if not re.search(r"[\u4e00-\u9fffA-Za-z]", name):
+        raise HTTPException(status_code=400, detail="名稱必須包含中文或英文字母")
     
     # Check if user exists in both tables with clear error messages
     if user_type == "cleaner":
@@ -156,7 +181,27 @@ def get_cleaners(session: Session = Depends(get_session)):
 @router.post("/cleaners")
 def add_cleaner(data: dict, session: Session = Depends(get_session)):
     """Add new cleaner"""
+    import re
+    
     phone = data.get("phone", "")
+    name = data.get("name", "")
+    
+    # Input validation
+    if not isinstance(name, str) or not isinstance(phone, str):
+        raise HTTPException(status_code=400, detail="輸入格式錯誤")
+    
+    if len(name) > 50:
+        raise HTTPException(status_code=400, detail="名稱不能超過50個字符")
+    if len(phone) > 20:
+        raise HTTPException(status_code=400, detail="電話號碼不能超過20個字符")
+    
+    if re.search(r"[<>\'\";\\]", name):
+        raise HTTPException(status_code=400, detail="名稱包含非法字符")
+    if re.search(r"[<>\'\";\\]", phone):
+        raise HTTPException(status_code=400, detail="電話號碼包含非法字符")
+    
+    if not re.search(r"[\u4e00-\u9fffA-Za-z]", name):
+        raise HTTPException(status_code=400, detail="名稱必須包含中文或英文字母")
     
     # Check if phone exists in cleaners
     existing_cleaner = session.exec(select(Cleaner).where(Cleaner.phone == phone)).first()
@@ -275,7 +320,27 @@ def get_host_by_code(code: str, session: Session = Depends(get_session)):
 @router.post("/hosts")
 def add_host(data: dict, session: Session = Depends(get_session)):
     """Add new host"""
+    import re
+    
     phone = data.get("phone", "")
+    name = data.get("name", "")
+    
+    # Input validation
+    if not isinstance(name, str) or not isinstance(phone, str):
+        raise HTTPException(status_code=400, detail="輸入格式錯誤")
+    
+    if len(name) > 50:
+        raise HTTPException(status_code=400, detail="名稱不能超過50個字符")
+    if len(phone) > 20:
+        raise HTTPException(status_code=400, detail="電話號碼不能超過20個字符")
+    
+    if re.search(r"[<>\'\";\\]", name):
+        raise HTTPException(status_code=400, detail="名稱包含非法字符")
+    if re.search(r"[<>\'\";\\]", phone):
+        raise HTTPException(status_code=400, detail="電話號碼包含非法字符")
+    
+    if not re.search(r"[\u4e00-\u9fffA-Za-z]", name):
+        raise HTTPException(status_code=400, detail="名稱必須包含中文或英文字母")
     
     # Check if phone exists in hosts
     existing_host = session.exec(select(Host).where(Host.phone == phone)).first()
