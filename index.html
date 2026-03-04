@@ -265,8 +265,12 @@
             
             let fields = `
                 <input-group>
-                    <label class="input-label">驗證密鑰</label>
-                    <input type="text" id="mainCode" class="input-premium" placeholder="請輸入 6 位代碼" spellcheck="false">
+                    <label class="input-label">電話號碼</label>
+                    <input type="tel" id="loginPhone" class="input-premium" placeholder="請輸入電話號碼" spellcheck="false">
+                </input-group>
+                <input-group>
+                    <label class="input-label">密碼</label>
+                    <input type="password" id="loginPass" class="input-premium" placeholder="請輸入密碼">
                 </input-group>
                 `;
             
@@ -287,8 +291,18 @@
             document.getElementById('loginModal').classList.add('active');
             
             // 測試環境預填
-            if(mode === 'host') setTimeout(() => document.getElementById('mainCode').value = '547047', 100);
-            if(mode === 'cleaner') setTimeout(() => document.getElementById('mainCode').value = '979800', 100);
+            if(mode === 'host') {
+                setTimeout(() => {
+                    document.getElementById('loginPhone').value = '403-987-6543';
+                    document.getElementById('loginPass').value = '123456';
+                }, 100);
+            }
+            if(mode === 'cleaner') {
+                setTimeout(() => {
+                    document.getElementById('loginPhone').value = '403-333-4444';
+                    document.getElementById('loginPass').value = '123456';
+                }, 100);
+            }
         }
 
         function closeModal() { 
@@ -302,8 +316,8 @@
 
             try {
                 if (currentMode === 'host') {
-                    const code = document.getElementById('mainCode').value;
-                    const res = await fetch(API + '/hosts/code/' + code);
+                    const phone = document.getElementById('loginPhone').value;
+                    const res = await fetch(API + '/hosts/code/' + phone);
                     const data = await res.json();
                     if (data.data) {
                         localStorage.setItem('host_id', data.data.id);
@@ -314,10 +328,10 @@
                     }
                 } 
                 else if (currentMode === 'cleaner') {
-                    const code = document.getElementById('mainCode').value;
+                    const phone = document.getElementById('loginPhone').value;
                     const res = await fetch(API + '/cleaners');
                     const data = await res.json();
-                    const cleaner = data.data.find(c => c.code == code);
+                    const cleaner = data.data.find(c => c.phone == phone);
                     if (cleaner) {
                         localStorage.setItem('cleaner_id', cleaner.id);
                         localStorage.setItem('cleaner_code', cleaner.code);
